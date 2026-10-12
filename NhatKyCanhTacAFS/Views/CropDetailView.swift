@@ -161,9 +161,9 @@ struct CropDetailView: View {
         } label: {
             HStack {
                 Image(systemName: "qrcode")
-                Text("Kết thúc vụ · Xuất QR")
+                Text("Kết thúc vụ · Excel & QR")
                 Spacer()
-                Text("Hạn tùy chọn").font(.system(size: 11)).opacity(0.85)
+                Text("Xuất Excel · QR").font(.system(size: 11)).opacity(0.85)
             }
             .font(.system(size: 15, weight: .semibold))
             .foregroundColor(AppTheme.primaryDark)
@@ -195,9 +195,10 @@ struct LogTable: View {
                     row(log, zebra: index % 2 == 1)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(AppTheme.line, lineWidth: 1))
+            .background(Color.white)
         }
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(AppTheme.line, lineWidth: 1))
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.white))
         .shadow(color: AppTheme.cardShadow, radius: 10, y: 4)
     }
