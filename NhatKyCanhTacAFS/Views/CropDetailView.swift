@@ -161,9 +161,9 @@ struct CropDetailView: View {
         } label: {
             HStack {
                 Image(systemName: "qrcode")
-                Text("Kết thúc vụ · Excel & QR")
+                Text("Kết thúc vụ · Xuất mã QR")
                 Spacer()
-                Text("Xuất Excel · QR").font(.system(size: 11)).opacity(0.85)
+                Text("Tạo mã QR").font(.system(size: 11)).opacity(0.85)
             }
             .font(.system(size: 15, weight: .semibold))
             .foregroundColor(AppTheme.primaryDark)

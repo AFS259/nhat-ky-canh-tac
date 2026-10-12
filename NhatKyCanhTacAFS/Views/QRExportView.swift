@@ -13,9 +13,6 @@ struct QRExportView: View {
     @State private var payload: QRPayload?
     @State private var errorText: String?
     @State private var locked = false
-    @State private var excelExported = false
-    @State private var exportURL: URL?
-    @State private var showShare = false
     @FocusState private var daysFocused: Bool
 
     private let dayOptions = [7, 10, 30, 60, 90]
@@ -32,8 +29,7 @@ struct QRExportView: View {
     }
 
     private var currentStep: Int {
-        if locked { return 3 }
-        return excelExported ? 2 : 1
+        locked ? 2 : 1
     }
 
     var body: some View {
@@ -48,7 +44,6 @@ struct QRExportView: View {
                             lockedSection(payload)
                         } else {
                             stepBar
-                            excelCard
                             durationCard
                             expiryCard
                             if let errorText {
@@ -75,11 +70,6 @@ struct QRExportView: View {
             .onAppear {
                 if daysText.isEmpty { daysText = "\(storedDays)" }
             }
-            .sheet(isPresented: $showShare, onDismiss: { excelExported = true }) {
-                if let exportURL {
-                    ShareSheet(items: [exportURL])
-                }
-            }
         }
     }
 
@@ -93,7 +83,7 @@ struct QRExportView: View {
                     .font(.system(size: 26, weight: .semibold))
                     .foregroundColor(.white)
             }
-            Text(locked ? "Đã xuất mã QR" : "Kết thúc vụ · Xuất dữ liệu")
+            Text(locked ? "Đã xuất mã QR" : "Kết thúc vụ · Xuất mã QR")
                 .font(.system(size: 17, weight: .bold))
                 .foregroundColor(AppTheme.textPrimary)
             Text("\(areaName) · \(crop.title)")
@@ -106,15 +96,11 @@ struct QRExportView: View {
 
     private var stepBar: some View {
         HStack(spacing: 8) {
-            stepPill(index: 1, title: "Excel", active: currentStep == 1)
+            stepPill(index: 1, title: "Thời hạn", active: currentStep == 1)
             Image(systemName: "chevron.right")
                 .font(.system(size: 10, weight: .bold))
                 .foregroundColor(AppTheme.textSecondary.opacity(0.5))
-            stepPill(index: 2, title: "Thời hạn", active: currentStep == 2)
-            Image(systemName: "chevron.right")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundColor(AppTheme.textSecondary.opacity(0.5))
-            stepPill(index: 3, title: "Mã QR", active: currentStep == 3)
+            stepPill(index: 2, title: "Mã QR", active: currentStep == 2)
         }
     }
 
@@ -134,54 +120,12 @@ struct QRExportView: View {
         .background(Capsule().fill(active ? AppTheme.accent.opacity(0.2) : Color.white.opacity(0.7)))
     }
 
-    // MARK: - Step 1: Excel export
-
-    private var excelCard: some View {
-        AFSCard(padding: 20) {
-            VStack(alignment: .leading, spacing: 14) {
-                AFSSectionTitle(icon: "tablecells", title: "Bước 1 · Xuất file Excel",
-                                subtitle: "Xuất bảng Mục 2 ra file CSV, mở được bằng Excel.")
-
-                HStack(spacing: 12) {
-                    Image(systemName: "doc.text.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(AppTheme.primary)
-                        .frame(width: 40, height: 40)
-                        .background(Circle().fill(AppTheme.primary.opacity(0.12)))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("\(crop.logs.count) dòng nhật ký")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(AppTheme.textPrimary)
-                        Text(fileName)
-                            .font(.system(size: 11))
-                            .foregroundColor(AppTheme.textSecondary)
-                            .lineLimit(1)
-                    }
-                    Spacer()
-                    if excelExported {
-                        Label("Đã xuất", systemImage: "checkmark.circle.fill")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(AppTheme.primary)
-                    }
-                }
-
-                Button {
-                    exportExcel()
-                } label: {
-                    Label(excelExported ? "XUẤT LẠI FILE EXCEL" : "XUẤT FILE EXCEL",
-                          systemImage: "square.and.arrow.up")
-                }
-                .buttonStyle(AFSPrimaryButtonStyle(color: excelExported ? AppTheme.primaryDark : AppTheme.primary))
-            }
-        }
-    }
-
-    // MARK: - Step 2: Duration
+    // MARK: - Step 1: Duration
 
     private var durationCard: some View {
         AFSCard(padding: 20) {
             VStack(alignment: .leading, spacing: 16) {
-                AFSSectionTitle(icon: "hourglass", title: "Bước 2 · Số ngày hiệu lực",
+                AFSSectionTitle(icon: "hourglass", title: "Bước 1 · Số ngày hiệu lực",
                                 subtitle: "Mã QR còn hiệu lực kể từ khi tạo.")
 
                 HStack(spacing: 18) {
@@ -252,14 +196,6 @@ struct QRExportView: View {
 
     private var generateButton: some View {
         VStack(spacing: 10) {
-            if !excelExported {
-                HStack(spacing: 6) {
-                    Image(systemName: "info.circle.fill").foregroundColor(AppTheme.gold)
-                    Text("Nên xuất file Excel (Bước 1) trước khi xuất QR.")
-                        .font(.system(size: 12))
-                        .foregroundColor(AppTheme.textSecondary)
-                }
-            }
             Button {
                 daysFocused = false
                 generate()
@@ -274,7 +210,7 @@ struct QRExportView: View {
         }
     }
 
-    // MARK: - Step 3: Locked result
+    // MARK: - Step 2: Locked result
 
     private func lockedSection(_ payload: QRPayload) -> some View {
         VStack(spacing: 18) {
@@ -349,13 +285,6 @@ struct QRExportView: View {
 
     // MARK: - Helpers
 
-    private var fileName: String {
-        let base = "\(areaName)_\(crop.cropType)"
-            .replacingOccurrences(of: " ", with: "_")
-            .filter { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }
-        return "NhatKyCanhTac_\(base.isEmpty ? "vu" : base).csv"
-    }
-
     private func row(icon: String, title: String, value: String, highlight: Bool = false) -> some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
@@ -392,40 +321,6 @@ struct QRExportView: View {
 
     private func adjust(_ delta: Int) {
         daysText = "\(min(max(validDays + delta, minDays), maxDays))"
-    }
-
-    private func csvEscape(_ value: String) -> String {
-        if value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r") {
-            return "\"" + value.replacingOccurrences(of: "\"", with: "\"\"") + "\""
-        }
-        return value
-    }
-
-    private func exportExcel() {
-        var lines: [String] = []
-        lines.append("NHẬT KÝ CANH TÁC")
-        lines.append("Khu vực,\(csvEscape(areaName))")
-        lines.append("Vụ,\(csvEscape(crop.cropType))")
-        lines.append("Giống,\(csvEscape(crop.variety))")
-        lines.append("")
-        lines.append("Ngày trồng,Công việc,Ngày thực hiện,Ghi chú")
-        for log in crop.logs.sorted(by: { $0.performDate < $1.performDate }) {
-            lines.append([
-                Fmt.day.string(from: log.plantDate),
-                log.work.rawValue,
-                Fmt.day.string(from: log.performDate),
-                log.note,
-            ].map(csvEscape).joined(separator: ","))
-        }
-        let csv = "\u{FEFF}" + lines.joined(separator: "\r\n")
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-        do {
-            try csv.write(to: url, atomically: true, encoding: .utf8)
-            exportURL = url
-            showShare = true
-        } catch {
-            errorText = "Không tạo được file Excel: \(error.localizedDescription)"
-        }
     }
 
     private func generate() {

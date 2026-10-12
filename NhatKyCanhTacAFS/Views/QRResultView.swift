@@ -4,6 +4,10 @@ struct QRResultView: View {
     @Environment(\.dismiss) private var dismiss
     let payload: QRPayload
 
+    @State private var exportURL: URL?
+    @State private var exportError: String?
+    @State private var showShare = false
+
     private let colPlant: CGFloat = 96
     private let colWork: CGFloat = 150
     private let colPerform: CGFloat = 110
@@ -19,6 +23,7 @@ struct QRResultView: View {
                         header
                         validBanner
                         table
+                        exportButton
                     }
                     .padding(16)
                     .padding(.bottom, 24)
@@ -29,6 +34,11 @@ struct QRResultView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Đóng") { dismiss() }.foregroundColor(.white)
+                }
+            }
+            .sheet(isPresented: $showShare) {
+                if let exportURL {
+                    ShareSheet(items: [exportURL])
                 }
             }
         }
@@ -94,6 +104,23 @@ struct QRResultView: View {
         }
     }
 
+    private var exportButton: some View {
+        VStack(spacing: 10) {
+            Button {
+                exportData()
+            } label: {
+                Label("XUẤT DỮ LIỆU", systemImage: "square.and.arrow.up")
+            }
+            .buttonStyle(AFSPrimaryButtonStyle())
+            if let exportError {
+                Text(exportError)
+                    .font(.system(size: 12))
+                    .foregroundColor(AppTheme.danger)
+                    .multilineTextAlignment(.center)
+            }
+        }
+    }
+
     private var headerRow: some View {
         HStack(spacing: 0) {
             headCell("Ngày trồng", colPlant)
@@ -135,5 +162,45 @@ struct QRResultView: View {
             .foregroundColor(AppTheme.textPrimary)
             .frame(width: width, alignment: .leading)
             .padding(.horizontal, 10).padding(.vertical, 12)
+    }
+
+    private var fileName: String {
+        let base = "\(payload.areaName)_\(payload.crop)"
+            .replacingOccurrences(of: " ", with: "_")
+            .filter { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }
+        return "NhatKyCanhTac_\(base.isEmpty ? "vu" : base).csv"
+    }
+
+    private func csvEscape(_ value: String) -> String {
+        if value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r") {
+            return "\"" + value.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+        }
+        return value
+    }
+
+    private func exportData() {
+        var lines: [String] = []
+        lines.append("NHẬT KÝ CANH TÁC")
+        lines.append("Khu vực,\(csvEscape(payload.areaName))")
+        lines.append("Vụ,\(csvEscape(payload.crop))")
+        lines.append("Ngày xuất,\(Fmt.dayTime.string(from: payload.issuedAt))")
+        lines.append("Hết hạn,\(Fmt.day.string(from: payload.expiresAt))")
+        lines.append("")
+        lines.append("Ngày trồng,Công việc,Ngày thực hiện,Ghi chú")
+        for r in payload.rows {
+            lines.append([r.plantDate, r.work, r.performDate, r.note]
+                .map(csvEscape)
+                .joined(separator: ","))
+        }
+        let csv = "\u{FEFF}" + lines.joined(separator: "\r\n")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        do {
+            try csv.write(to: url, atomically: true, encoding: .utf8)
+            exportError = nil
+            exportURL = url
+            showShare = true
+        } catch {
+            exportError = "Không tạo được file dữ liệu: \(error.localizedDescription)"
+        }
     }
 }
