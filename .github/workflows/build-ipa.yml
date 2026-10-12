@@ -1,4 +1,4 @@
-name: Build iOS IPA
+name: Build iOS IPA (unsigned)
 
 on:
   workflow_dispatch:
@@ -17,60 +17,39 @@ jobs:
       - name: Verify Xcode version
         run: xcodebuild -version
 
-      - name: Import signing certificate and provisioning profile
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -z "${{ secrets.IOS_CERT_BASE64 }}" ] || [ -z "${{ secrets.IOS_PROVPROFILE_BASE64 }}" ]; then
-            echo "::error::Thieu secrets IOS_CERT_BASE64 / IOS_PROVPROFILE_BASE64. Xem huong dan trong IOS_BUILD_GUIDE.md"
-            exit 1
-          fi
-          echo "${{ secrets.IOS_CERT_BASE64 }}" | base64 --decode > /tmp/afs_cert.p12
-          echo "${{ secrets.IOS_PROVPROFILE_BASE64 }}" | base64 --decode > /tmp/afs_profile.mobileprovision
-
-          KEYCHAIN_PATH=~/Library/Keychains/build.keychain-db
-          KEYCHAIN_PW=afsbuild
-          security create-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN_PATH" 2>/dev/null || true
-          security default-keychain -s "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 900 "$KEYCHAIN_PATH"
-          security import /tmp/afs_cert.p12 -P "${{ secrets.IOS_CERT_PASSWORD }}" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PW" "$KEYCHAIN_PATH" >/dev/null
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp /tmp/afs_profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
-          echo "Signing assets installed."
-
-      - name: Archive app for iOS device
+      - name: Build unsigned archive
         shell: bash
         run: |
           set -euo pipefail
           xcodebuild \
             -project NhatKyCanhTacAFS.xcodeproj \
             -scheme NhatKyCanhTacAFS \
+            -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath build/AFS.xcarchive \
-            -allowProvisioningUpdates \
-            CODE_SIGN_STYLE=Manual \
-            DEVELOPMENT_TEAM=${{ secrets.IOS_TEAM_ID }} \
-            CODE_SIGN_IDENTITY="Apple Development" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            DEVELOPMENT_TEAM="" \
             archive
+          echo "Archive built (unsigned)."
 
-      - name: Export IPA
+      - name: Package unsigned IPA
         shell: bash
         run: |
           set -euo pipefail
-          xcodebuild \
-            -exportArchive \
-            -archivePath build/AFS.xcarchive \
-            -exportPath build/export \
-            -exportOptionsPlist scripts/ExportOptions.plist \
-            -allowProvisioningUpdates
-          test -f build/export/NhatKyCanhTacAFS.ipa
+          APP_PATH="build/AFS.xcarchive/Products/Applications/NhatKyCanhTacAFS.app"
+          test -d "$APP_PATH"
+          rm -rf build/Payload build/export
+          mkdir -p build/Payload build/export
+          cp -R "$APP_PATH" build/Payload/
+          (cd build && zip -qry export/NhatKyCanhTacAFS.ipa Payload)
           ls -lh build/export/
 
-      - name: Upload IPA artifact
+      - name: Upload unsigned IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NhatKyCanhTacAFS.ipa
+          name: NhatKyCanhTacAFS-unsigned.ipa
           path: build/export/NhatKyCanhTacAFS.ipa
           if-no-files-found: error
