@@ -124,28 +124,6 @@ final class AppState: ObservableObject {
         return false
     }
 
-    /// Đăng nhập / tạo tài khoản bằng tài khoản Google (email đã xác thực).
-    @discardableResult
-    func loginWithGoogle(email: String, fullName: String) -> Bool {
-        let name = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !name.isEmpty else {
-            lastError = "Google không trả về email."
-            return false
-        }
-        if let existing = users.first(where: { $0.username.lowercased() == name }) {
-            currentUser = existing
-        } else {
-            let user = AppUser(username: name, passwordHash: hash(UUID().uuidString),
-                               fullName: fullName.isEmpty ? name : fullName)
-            users.append(user)
-            areasByUser[name] = []
-            currentUser = user
-        }
-        lastError = nil
-        save()
-        return true
-    }
-
     func logout() {
         currentUser = nil
         save()
