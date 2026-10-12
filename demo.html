@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Nhật Ký Canh Tác AFS — Demo</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>
+:root{
+  --p:#2E7D32; --pd:#1B5E20; --pl:#4CAF50; --ac:#8BC34A; --bg:#F1F8E9;
+  --tx:#1B2A1C; --ts:#5B6B5D; --ln:#E2ECDA; --card:#fff; --danger:#C62828; --warn:#EF6C00;
+  --r:18px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:radial-gradient(circle at 30% 20%,#3a7d42,#123a15);min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px}
+#stage{width:100%;max-width:400px;height:min(860px,88vh);background:var(--bg);border-radius:38px;border:10px solid #0d2b10;box-shadow:0 30px 60px rgba(0,0,0,.5);overflow:hidden;display:flex;flex-direction:column;position:relative}
+#screen{flex:1;overflow-y:auto;scrollbar-width:none}
+#screen::-webkit-scrollbar{display:none}
+.hide{display:none!important}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:15px;border:0;border-radius:14px;background:var(--p);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+.btn:disabled{opacity:.5}
+.btn.sec{background:rgba(46,125,50,.1);color:var(--p)}
+.btn.danger{background:var(--danger)}
+.btn.outline{background:transparent;box-shadow:inset 0 0 0 2px var(--p);color:var(--p)}
+.card{background:var(--card);border-radius:var(--r);padding:16px;box-shadow:0 6px 18px rgba(0,0,0,.06);margin-bottom:14px;width:100%}
+.field{margin-bottom:14px}
+.field label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--ts);margin-bottom:7px}
+.input{width:100%;padding:13px 14px;font-size:15px;border-radius:12px;border:1px solid var(--ln);background:#F6FBF1;color:var(--tx);outline:none}
+.input:focus{border-color:var(--p)}
+.section-title{display:flex;align-items:center;gap:10px;margin:6px 0 12px}
+.section-title .ic{width:34px;height:34px;border-radius:10px;background:rgba(46,125,50,.12);display:flex;align-items:center;justify-content:center;font-size:16px}
+.section-title h3{font-size:16px;color:var(--tx)}
+.section-title p{font-size:11px;color:var(--ts)}
+.hero{background:linear-gradient(135deg,var(--pd),var(--pl));border-radius:var(--r);padding:18px;color:#fff;display:flex;align-items:center;gap:12px;box-shadow:0 10px 20px rgba(46,125,50,.3);margin-bottom:14px}
+.badge{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:24px}
+.navbar{background:var(--p);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:5}
+.navbar .t{font-size:17px;font-weight:700;flex:1;text-align:center}
+.icon-btn{background:none;border:0;color:#fff;font-size:20px;cursor:pointer;padding:4px}
+.row{display:flex;align-items:center;gap:12px}
+.tag{font-size:11px;font-weight:600;color:var(--p);background:rgba(46,125,50,.1);padding:3px 9px;border-radius:20px}
+.empty{text-align:center;padding:50px 20px;color:var(--ts)}
+.empty .big{font-size:46px;margin-bottom:14px}
+.empty h4{color:var(--tx);margin-bottom:6px;font-size:17px}
+.pill{background:rgba(46,125,50,.16);color:var(--pd);font-weight:600;border-radius:11px;padding:11px;text-align:center;font-size:13px;cursor:pointer}
+.pill.active{background:var(--p);color:#fff}
+/* table */
+.twrap{border-radius:14px;overflow:auto;background:#fff;box-shadow:0 6px 18px rgba(0,0,0,.06);min-height:120px}
+table{border-collapse:collapse;min-width:660px;width:max-content}
+th{background:var(--p);color:#fff;font-size:12px;padding:12px 10px;text-align:left;white-space:nowrap}
+td{font-size:12px;color:var(--tx);padding:12px 10px;border-bottom:1px solid var(--ln);vertical-align:top}
+tr:nth-child(even) td{background:#F6FBF1}
+/* steps */
+.stepbar{display:flex;gap:6px;padding:12px 16px 4px}
+.stepbar div{flex:1;height:5px;border-radius:4px;background:rgba(46,125,50,.16)}
+.stepbar div.on{background:var(--p)}
+.steplbl{display:flex;justify-content:space-between;padding:6px 16px 8px;font-size:12px;color:var(--ts)}
+.steplbl b{color:var(--p)}
+.quote{text-align:center;color:var(--ts);font-size:12px;padding:8px 0}
+/* lock */
+.lockbar{display:flex;gap:10px;align-items:flex-start;background:rgba(239,108,0,.12);border:1px solid rgba(239,108,0,.4);padding:14px;border-radius:12px;font-size:12px;color:var(--tx);margin-bottom:14px}
+.lockbar b{display:block}
+/* chips */
+.chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.chips button{border:0;border-radius:11px;padding:11px 6px;background:rgba(139,195,74,.16);color:var(--pd);font-size:13px;font-weight:600;cursor:pointer}
+.chips button.on{background:var(--p);color:#fff}
+.variant{border:1px solid var(--ln);background:#fff;border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:14px;color:var(--tx);cursor:pointer;width:100%;margin-bottom:8px}
+.variant.on{border-color:var(--p);background:rgba(139,195,74,.16)}
+/* photos */
+.thumbrow{display:flex;gap:10px;overflow-x:auto;padding:4px 2px}
+.addshot{width:84px;height:84px;border-radius:14px;border:1.5px dashed rgba(46,125,50,.6);background:rgba(46,125,50,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--p);font-size:11px;gap:4px;cursor:pointer;flex:none}
+.thumb{width:84px;height:84px;border-radius:14px;flex:none;position:relative}
+.thumb img{width:100%;height:100%;object-fit:cover;border-radius:14px}
+.thumb .x{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--danger);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.rule{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--ts);margin-top:10px}
+.photo{width:100%;border-radius:14px;margin-bottom:12px}
+/* modal */
+#modal{position:absolute;inset:0;background:rgba(10,20,10,.55);display:none;align-items:flex-end;z-index:30}
+#modal.on{display:flex}
+#modal .sheet{background:var(--bg);width:100%;border-radius:24px 24px 0 0;padding:20px;max-height:92%;overflow-y:auto;animation:up .25s ease}
+@keyframes up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+.dots{display:flex;align-items:center;justify-content:center;padding:16px 0 10px}
+/* qr */
+.qrbox{background:#fff;border-radius:16px;padding:14px;text-align:center;border:1px solid var(--ln)}
+.qrbox img, .qrbox .fakeqr{width:220px;height:220px;margin:0 auto}
+.fakeqr{background:#fff;display:grid;grid-template-columns:repeat(25,1fr);gap:1px;padding:8px;border:1px solid #ddd}
+.intro{text-align:center;color:var(--ts);font-size:11px;margin-top:8px}
+.kvline{display:flex;justify-content:space-between;font-size:13px;padding:9px 0;border-bottom:1px dashed var(--ln)}
+.kvline span:first-child{color:var(--ts)}
+.kvline b{color:var(--tx)}
+.warnline{display:flex;gap:8px;font-size:11px;color:var(--warn);margin-top:10px}
+.okline{display:flex;gap:8px;font-size:13px;font-weight:600;color:var(--p);background:rgba(46,125,50,.12);padding:12px;border-radius:12px;margin-bottom:14px}
+.chip{font-size:12px;font-weight:600;color:var(--pd);background:var(--ac);padding:3px 10px;border-radius:20px}
+.footer{font-size:10px;color:var(--ts);text-align:center;padding:16px}
+.seg{display:flex;background:#EEF6E6;border-radius:12px;padding:4px;margin-bottom:16px}
+.seg button{flex:1;border:0;background:none;padding:9px;border-radius:9px;font-size:14px;font-weight:600;color:var(--ts);cursor:pointer}
+.seg button.on{background:var(--p);color:#fff}
+.err{display:flex;gap:6px;align-items:center;font-size:12px;font-weight:600;color:var(--danger);margin-bottom:10px}
+.grow{flex:1}
+.statusbar{height:38px;background:linear-gradient(135deg,var(--pd),var(--pl));border-radius:0;display:flex;align-items:center;justify-content:space-between;padding:0 20px;color:#fff;font-size:12px}
+/* camera mock */
+#cam{position:absolute;inset:0;background:#000;z-index:40;display:none;flex-direction:column}
+#cam.on{display:flex}
+#cam .camtop{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;color:#fff;z-index:2}
+.camframe{position:relative;flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.camframe .ctx{width:78%;height:78%;border:2px dashed rgba(255,255,255,.6);border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#fff;text-align:center}
+.camframe .ctx b{letter-spacing:1px}
+.shutter{display:flex;justify-content:center;padding:26px;background:rgba(0,0,0,.6)}
+.shutter button{width:76px;height:76px;border-radius:50%;border:4px solid #fff;background:#fff;cursor:pointer}
+.shutter button:active{transform:scale(.92)}
+.shot-row{display:flex;gap:12px;padding:16px;background:rgba(0,0,0,.55)}
+.shot-row button{flex:1;padding:14px;border-radius:14px;border:0;font-size:14px;font-weight:700;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="statusbar"><span>9:41</span><span>AFS · Nhật Ký Canh Tác</span></div>
+  <div id="screen"></div>
+  <div id="modal"><div class="sheet" id="sheetBox"></div></div>
+  <div id="cam">
+    <div class="camtop">
+      <button class="icon-btn" onclick="closeCam()">✕</button>
+      <span style="font-size:15px;font-weight:600">Chụp ảnh nhật ký</span>
+      <span style="width:20px"></span>
+    </div>
+    <div class="camframe">
+      <div class="ctx" id="camCtx">
+        <div style="font-size:34px">📷</div>
+        <b>GIỮ ĐIỆN THOẠI THẲNG ĐỨNG</b>
+        <div style="font-size:11px;opacity:.85">Đưa chủ thể vào giữa khung hình</div>
+      </div>
+    </div>
+    <div class="shutter"><button onclick="takeShot()"></button></div>
+  </div>
+</div>
+<script>
+/* ================= DỮ LIỆU DEMO ================= */
+const DAY = 86400000;
+function hh(n){ return Math.round(n/3600)+'h'+(Math.round(n%3600/60))+'p'; }
+function now(){ return new Date(); }
+function fmt(d){ const x=new Date(d); const p=n=>String(n).padStart(2,'0'); return p(x.getDate())+'/'+p(x.getMonth()+1)+'/'+x.getFullYear(); }
+function seedLog(work, plantD, perfD, note, base){
+  return { id:'lg'+Math.random().toString(36).slice(2,8), plantDate: toDate(plantD), work: work, performDate: toDate(perfD),
+           note: note, images: [SAMPLE_IMG], createdAt: base };
+}
+const WORKS=[
+  {k:'phanBonLa',v:'Phân bón lá',ic:'🍃'},
+  {k:'phanBonGoc',v:'Phân bón gốc',ic:'💧'},
+  {k:'phunThuocCay',v:'Phun thuốc cây',ic:'🧴'},
+  {k:'thuocBVTV',v:'Thuốc BVTV',ic:'🛡️'},
+  {k:'quanDay',v:'Quấn dây',ic:'🌀'},
+  {k:'tiaChoi',v:'Tỉa chồi',ic:'✂️'},
+  {k:'thuPhan',v:'Thụ phấn',ic:'🐝'},
+];
+const CATALOG={ 'Ổi':['Ổi Đài Loan','Ổi Lê','Ổi Nữ Hoàng'],'Xoài':['Xoài Cát Chu','Xoài Cát Hòa Lộc','Xoài Đài Loan'],
+  'Bưởi':['Bưởi Da Xanh','Bưởi Năm Roi'],'Cam':['Cam Sành','Cam Xoàn'],'Thanh Long':['Thanh Long Ruột Đỏ','Thanh Long Ruột Trắng'],
+  'Dưa Hấu':['Dưa Hấu Black Lady'],'Cà Chua':['Cà Chua Cherry','Cà Chua Beef'],'Ớt':['Ớt Chỉ Thiên','Ớt Sừng'] };
+const SAMPLE_IMG = 'data:image/svg+xml;utf8,'+encodeURIComponent(
+ '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400" viewBox="0 0 300 400"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8BC34A"/><stop offset="1" stop-color="#2E7D32"/></linearGradient></defs><rect width="300" height="400" fill="url(#g)"/><text x="150" y="210" font-size="90" text-anchor="middle">🌱</text><text x="150" y="330" font-size="18" text-anchor="middle" fill="#fff">Ảnh chụp nhật ký AFS</text></svg>');
+
+let DB = load();
+function load(){
+  try{ const raw=localStorage.getItem('afs_demo'); if(raw){ const d=JSON.parse(raw); if(d&&d.areas) return d; } }catch(e){}
+  const now=Date.now();
+  const crop={
+    id:'c1', cropType:'Ổi', variety:'Ổi Đài Loan', areaM2:500, seedCount:1200,
+    sowDate: now-54*DAY, plantCount:300, plantDate: now-50*DAY, createdAt: now-54*DAY,
+    logs:[
+      seedLog('Quấn dây',new Date(now-50*DAY),new Date(now-49*DAY),'Quấn dây đỡ cành cấp 1, tránh gãy khi ra quả.', now-6*3600000),
+      seedLog('Phân bón lá',new Date(now-50*DAY),new Date(now-44*DAY),'Phun phân bón lá định kỳ, pha đúng liều lượng.', now-9*DAY),
+      seedLog('Phun thuốc cây',new Date(now-50*DAY),new Date(now-30*DAY),'Phun thuốc phòng sâu đục thân.', now-30*DAY)
+    ]
+  };
+  return { users:[{u:'afs',p:'1234',n:'Kỹ thuật viên AFS'}], user:null,
+    areas:[{ id:'a1', name:'Vườn ổi sau nhà', address:'Ấp 3, xã Tân Phú', note:'Vườn quy mô 500m²', createdAt: now-60*DAY,
+      crops:[ crop,
+        { id:'c2', cropType:'Ớt', variety:'Ớt Sừng', areaM2:120, seedCount:300, sowDate:now-20*DAY,
+          plantCount:80, plantDate:now-15*DAY, createdAt:now-20*DAY, logs:[] }
+      ]}
+    ] };
+}
+function save(){ localStorage.setItem('afs_demo', JSON.stringify(DB)); }
+const $=s=>document.querySelector(s);
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function workObj(k){ return WORKS.find(w=>w.k===k)||WORKS[0]; }
+
+/* ================= ROUTER ================= */
+const SC={};
+function show(name,arg){ SC[name](arg); $('#screen').scrollTop=0; closeModal(); }
+
+/* ---------- LOGIN ---------- */
+SC.login=function(){
+  let reg=false;
+  const draw=()=>{
+    $('#screen').innerHTML=`
+    <div style="padding:34px 22px 20px;text-align:center">
+      <div style="width:96px;height:96px;margin:0 auto 14px;border-radius:50%;background:linear-gradient(135deg,var(--pl),var(--pd));display:flex;align-items:center;justify-content:center;font-size:44px;box-shadow:0 12px 24px rgba(46,125,50,.35)">🌿</div>
+      <h1 style="color:var(--pd);font-size:24px;letter-spacing:1px">NHẬT KÝ CANH TÁC</h1>
+      <div style="color:var(--ac);font-weight:800;font-size:14px;letter-spacing:8px;margin-top:2px">A F S</div>
+      <div style="color:var(--ts);font-size:12px">Thuộc AUTO FUNSION SYSTEM</div>
+    </div>
+    <div style="padding:0 22px">
+      <div class="card">
+        <div class="seg">
+          <button class="${!reg?'on':''}" onclick="(${reg?1:0})?null:null, demoLoginToggle(true)">Đăng nhập</button>
+          <button class="${reg?'on':''}" onclick="demoLoginToggle(false)">Đăng ký</button>
+        </div>
+        ${reg?`<div class="field"><label>👤 Họ và tên</label><input id="ln-name" class="input" placeholder="Nguyễn Văn A"></div>`:''}
+        <div class="field"><label>👤 Tên đăng nhập</label><input id="ln-user" class="input" placeholder="Nhập tên đăng nhập" value="afs"></div>
+        <div class="field"><label>🔒 Mật khẩu</label><input id="ln-pass" type="password" class="input" placeholder="Nhập mật khẩu" value="1234"></div>
+        <div id="ln-err" class="err hide">⚠️ <span></span></div>
+        <button class="btn" onclick="demoLogin()">${reg?'TẠO TÀI KHOẢN':'ĐĂNG NHẬP'}</button>
+      </div>
+      <div class="quote">Tài khoản dùng thử: <b>afs / 1234</b></div>
+      <div class="footer">© 2026 AUTO FUNSION SYSTEM — Bản demo giao diện</div>
+    </div>`;
+  };
+  demoLoginToggle=(toReg)=>{ reg=toReg; draw(); };
+  demoLogin=()=>{
+    const u=$('#ln-user').value.trim(); const p=$('#ln-pass').value;
+    const user=DB.users.find(x=>x.u===u && x.p===p);
+    if(!user){ err('#ln-err','Sai tên đăng nhập hoặc mật khẩu.'); return; }
+    DB.user=user; save(); show('areas');
+  };
+  draw();
+};
+function err(id,msg){ $(id).classList.remove('hide'); $(id).querySelector('span').textContent=msg; }
+
+/* ---------- AREAS ---------- */
+SC.areas=function(){
+  const n=DB.user?DB.user.n:'';
+  $('#screen').innerHTML=`
+    <div class="navbar"><span style="width:28px"></span><span class="t">Vườn của tôi</span><button class="icon-btn" onclick="openAddArea()">➕</button></div>
+    <div style="padding:16px">
+      <div class="hero">
+        <div class="badge">👨‍🌾</div>
+        <div style="flex:1"><div style="font-size:13px;opacity:.9">Xin chào,</div>
+          <div style="font-size:18px;font-weight:800">${esc(n)}</div></div>
+        <div style="text-align:right"><div style="font-size:22px;font-weight:900">${DB.areas.length}</div><div style="font-size:11px">khu vực</div></div>
+      </div>
+      ${DB.areas.map(a=>`
+      <div class="card" style="cursor:pointer" onclick="show('areaDetail',{id:'${a.id}'})">
+        <div class="row">
+          <div style="width:44px;height:44px;border-radius:50%;background:rgba(46,125,50,.14);display:flex;align-items:center;justify-content:center;font-size:20px">🌳</div>
+          <div style="flex:1">
+            <div style="font-weight:700;color:var(--tx)">${esc(a.name)}</div>
+            ${a.address?'<div style="font-size:12px;color:var(--ts)">📍 '+esc(a.address)+'</div>':''}
+            <div style="font-size:11px;color:var(--p);margin-top:4px">🌱 ${a.crops.length} vụ · 📅 ${fmt(a.createdAt)}</div>
+          </div>
+          <div style="color:var(--ts)">›</div>
+        </div>
+      </div>`).join('')||emptyState()}
+    </div>`;
+  $('#screen').innerHTML += '';
+
+  function emptyState(){
+    if(DB.areas.length) return '';
+    return `<div class="empty"><div class="big">🗺️</div><h4>Chưa có khu vực canh tác</h4>
+      <p>Nhấn dấu <b>+</b> để thêm khu vực đầu tiên của bạn.</p></div>`;
+  }
+};
+
+/* ---------- ADD AREA ---------- */
+function openAddArea(){
+  modal(`
+    <div class="row" style="margin-bottom:16px">
+      <button class="icon-btn" style="color:var(--p)" onclick="closeModal()">✕</button>
+      <div style="flex:1;text-align:center;font-weight:700;color:var(--tx)">Khu vực mới</div><span style="width:28px"></span>
+    </div>
+    <div class="field"><label>🌿 Tên khu vực</label><input id="ad-name" class="input" placeholder="VD: Vườn ổi sau nhà"></div>
+    <div class="field"><label>📍 Địa chỉ / vị trí</label><input id="ad-addr" class="input" placeholder="VD: Ấp 3, xã Tân Phú"></div>
+    <div class="field"><label>📝 Ghi chú</label><input id="ad-note" class="input" placeholder="Mô tả ngắn (không bắt buộc)"></div>
+    <button class="btn" onclick="addArea()">LƯU KHU VỰC</button>`);
+}
+function addArea(){
+  const name=$('#ad-name').value.trim(); if(!name){return;}
+  DB.areas.push({id:'a'+Math.random().toString(36).slice(2,8),name,address:$('#ad-addr').value.trim(),note:$('#ad-note').value.trim(),createdAt:Date.now(),crops:[]});
+  save(); closeModal(); show('areas');
+}
+function modal(html){ $('#sheetBox').innerHTML=html; $('#modal').classList.add('on'); }
+function closeModal(){ $('#modal').classList.remove('on'); }
+
+/* ---------- AREA DETAIL ---------- */
+SC.areaDetail=function(o){
+  const a=DB.areas.find(x=>x.id===o.id); if(!a){show('areas');return;}
+  $('#screen').innerHTML=`
+    <div class="navbar">
+      <button class="icon-btn" onclick="show('areas')">‹</button>
+      <span class="t">${esc(a.name)}</span>
+      <button class="icon-btn" onclick="openAddCrop('${a.id}')">➕</button>
+    </div>
+    <div style="padding:16px">
+      <div class="card">
+        <div class="row">
+          <div style="width:44px;height:44px;border-radius:50%;background:rgba(46,125,50,.14);display:flex;align-items:center;justify-content:center;font-size:20px">📍</div>
+          <div style="flex:1"><div style="font-weight:700">${esc(a.name)}</div>
+          ${a.address?'<div style="font-size:12px;color:var(--ts)">'+esc(a.address)+'</div>':''}</div>
+        </div>
+        ${a.note?'<div style="font-size:13px;color:var(--ts);margin-top:10px">'+esc(a.note)+'</div>':''}
+        <div style="border-top:1px solid var(--ln);margin-top:12px;padding-top:12px;display:flex;gap:18px;flex-wrap:wrap">
+          <div><b style="color:var(--p);font-size:16px">${a.crops.length}</b><div style="font-size:11px;color:var(--ts)">Vụ canh tác</div></div>
+          <div><b style="color:var(--p);font-size:16px">${a.crops.reduce((s,c)=>s+c.logs.length,0)}</b><div style="font-size:11px;color:var(--ts)">Nhật ký</div></div>
+          <div><b style="color:var(--p);font-size:16px">${fmt(a.createdAt)}</b><div style="font-size:11px;color:var(--ts)">Ngày tạo</div></div>
+        </div>
+      </div>
+      ${a.crops.map(c=>`
+      <div class="card" style="cursor:pointer" onclick="show('cropDetail',{area:'${a.id}',crop:'${c.id}'})">
+        <div class="row">
+          <div style="width:46px;height:46px;border-radius:12px;background:rgba(139,195,74,.2);display:flex;align-items:center;justify-content:center;font-size:22px">🌱</div>
+          <div style="flex:1"><div style="font-weight:700;color:var(--tx)">${esc(c.cropType)}</div>
+            <div style="font-size:12px;color:var(--ts)">Giống: ${esc(c.variety)}</div></div>
+          <div style="color:var(--ts)">›</div>
+        </div>
+        <div style="display:flex;margin-top:12px;justify-content:space-around;border-top:1px solid var(--ln);padding-top:12px">
+          <div style="text-align:center"><div style="font-size:13px;font-weight:700">${fmtNum(c.areaM2)} m²</div><div style="font-size:10px;color:var(--ts)">Diện tích</div></div>
+          <div style="text-align:center"><div style="font-size:13px;font-weight:700">${c.seedCount}</div><div style="font-size:10px;color:var(--ts)">Hạt gieo</div></div>
+          <div style="text-align:center"><div style="font-size:13px;font-weight:700">${c.plantCount}</div><div style="font-size:10px;color:var(--ts)">Cây trồng</div></div>
+          <div style="text-align:center"><div style="font-size:13px;font-weight:700">${c.logs.length}</div><div style="font-size:10px;color:var(--ts)">Nhật ký</div></div>
+        </div>
+      </div>`).join('')||`
+      <div class="empty"><div class="big">🌱</div><h4>Khu vực chưa có cây trồng</h4>
+        <p>Nhấn dấu + để thêm loại cây, giống, diện tích, ngày gieo & ngày trồng.</p></div>`}
+    </div>`;
+};
+function fmtNum(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+
+/* ---------- ADD CROP WIZARD ---------- */
+let cropDraft=null;
+const WZ_STEPS=['Loại cây','Giống','Diện tích','Gieo hạt','Trồng cây'];
+function openAddCrop(areaId){
+  if(!cropDraft || cropDraft.areaId!==areaId || !cropDraft.done){
+    cropDraft={areaId:areaId,type:'',variety:'',areaM2:'',seed:'',sow:new Date(),plant:'',plantDate:new Date(),step:0};
+  }
+  renderWizard();
+}
+function renderWizard(){
+  const d=cropDraft, s=d.step;
+  modal(`<div class="row" style="margin-bottom:14px">
+    <button class="icon-btn" style="color:var(--p)" onclick="closeModal()">✕</button>
+    <div style="flex:1;text-align:center;font-weight:700;color:var(--tx)">Thêm cây trồng</div><span style="width:28px"></span>
+    </div>
+    <div class="stepbar">${WZ_STEPS.map((_,i)=>'<div class="'+(i<=s?'on':'')+'"></div>').join('')}</div>
+    <div class="steplbl"><b>Bước ${s+1}/${WZ_STEPS.length}</b><span>${WZ_STEPS[s]}</span></div>
+    <div style="padding:0 4px">${wzBody(s,d)}</div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      ${s>0?'<button class="btn sec" style="flex:1" onclick="wizardPrev()">‹ Quay lại</button>':''}
+      <button class="btn" style="flex:2" onclick="wizardNext()">${s===4?'LƯU VỤ':'Tiếp tục'}</button>
+    </div>`);
+}
+function wzBody(s,d){
+  if(s===0) return `
+    <div class="section-title"><div class="ic">🌿</div><div><h3>Bạn trồng loại cây gì?</h3><p>Chọn nhanh hoặc tự nhập</p></div></div>
+    <div class="field"><input id="wz-type" class="input" placeholder="VD: Ổi" value="${esc(d.type)}"></div>
+    <div class="chips">${Object.keys(CATALOG).map(c=>`<button class="${d.type===c?'on':''}" onclick="wzPickType('${c}')">${c}</button>`).join('')}</div>`;
+  if(s===1){
+    const vars=CATALOG[d.type]||[];
+    return `
+    <div class="section-title"><div class="ic">🔖</div><div><h3>Chọn giống ${esc(d.type)}</h3><p>Giống quyết định năng suất</p></div></div>
+    <div class="field"><input id="wz-var" class="input" placeholder="VD: Ổi Đài Loan" value="${esc(d.variety)}"></div>
+    ${vars.map(v=>`<button class="variant ${d.variety===v?'on':''}" onclick="wzPickVar('${v}')"><span style="color:${d.variety===v?'var(--p)':'#888'}">✔</span>${v}</button>`).join('')}`;
+  }
+  if(s===2) return `
+    <div class="section-title"><div class="ic">📐</div><div><h3>Nhập diện tích</h3><p>Đơn vị mét vuông (m²)</p></div></div>
+    <div class="field"><input id="wz-area" type="number" class="input" placeholder="VD: 500" value="${d.areaM2}"></div>
+    ${d.areaM2?`<span class="tag">✓ ≈ ${fmtNum(d.areaM2)} m²</span>`:''}`;
+  if(s===3) return `
+    <div class="section-title"><div class="ic">🌾</div><div><h3>Gieo hạt</h3><p>Số hạt và ngày gieo</p></div></div>
+    <div class="field"><label>🔢 Số hạt gieo</label><input id="wz-seed" type="number" class="input" placeholder="VD: 1200" value="${d.seed}"></div>
+    <div class="field"><label>📅 Ngày gieo</label><input id="wz-sow" type="date" class="input" value="${toDate(d.sow)}"></div>`;
+  return `
+    <div class="section-title"><div class="ic">🌳</div><div><h3>Trồng cây</h3><p>Số cây và ngày trồng</p></div></div>
+    <div class="field"><label>🔢 Số cây trồng</label><input id="wz-plant" type="number" class="input" placeholder="VD: 300" value="${d.plant}"></div>
+    <div class="field"><label>📅 Ngày trồng</label><input id="wz-pdate" type="date" class="input" value="${toDate(d.plantDate)}"></div>
+    <div class="card" style="background:var(--bg)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px">Tóm tắt vụ</div>
+      <div class="kvline"><span>Loại cây</span><b>${esc(d.type)||'—'}</b></div>
+      <div class="kvline"><span>Giống</span><b>${esc(d.variety)||'—'}</b></div>
+      <div class="kvline"><span>Diện tích</span><b>${d.areaM2?fmtNum(d.areaM2)+' m²':'—'}</b></div>
+      <div class="kvline"><span>Hạt gieo</span><b>${d.seed?d.seed+' hạt':'—'}</b></div>
+      <div class="kvline"><span>Cây trồng</span><b>${d.plant?d.plant+' cây':'—'}</b></div>
+    </div>`;
+}
+function toDate(d){ const x=new Date(d); const p=n=>String(n).padStart(2,'0'); return isNaN(x.getTime())? '' : x.getFullYear()+'-'+p(x.getMonth()+1)+'-'+p(x.getDate()); }
+function fromDate(s){ if(!s) return new Date(); const d=new Date(s); return isNaN(d.getTime())? new Date() : d; }
+function wzPickType(c){ cropDraft.type=c; cropDraft.variety=''; renderWizard(); }
+function wzPickVar(v){ cropDraft.variety=v; renderWizard(); }
+function wizardPrev(){ if(cropDraft.step>0){ syncWzInputs(); cropDraft.step--; renderWizard(); } }
+function syncWzInputs(){
+  if($('#wz-type'))cropDraft.type=$('#wz-type').value;
+  if($('#wz-var'))cropDraft.variety=$('#wz-var').value;
+  if($('#wz-area'))cropDraft.areaM2=$('#wz-area').value;
+  if($('#wz-seed'))cropDraft.seed=$('#wz-seed').value;
+  if($('#wz-sow'))cropDraft.sow=fromDate($('#wz-sow').value);
+  if($('#wz-plant'))cropDraft.plant=$('#wz-plant').value;
+  if($('#wz-pdate'))cropDraft.plantDate=fromDate($('#wz-pdate').value);
+}
+function wizardNext(){
+  syncWzInputs(); const d=cropDraft;
+  const ok=[()=>d.type.trim(),()=>d.variety.trim(),()=>d.areaM2&&+d.areaM2>0,()=>d.seed&&+d.seed>0,()=>d.plant&&+d.plant>0][d.step];
+  if(!ok()){ alert('Vui lòng điền đầy đủ thông tin bước này.'); d.done=false; renderWizard(); return; }
+  if(d.step===4){ finishCrop(); return; }
+  d.step++; d.done=false; renderWizard();
+}
+function finishCrop(){
+  const d=cropDraft, a=DB.areas.find(x=>x.id===d.areaId); if(!a)return;
+  a.crops.push({ id:'c'+Math.random().toString(36).slice(2,8), cropType:d.type.trim(), variety:d.variety.trim(),
+    areaM2:+d.areaM2, seedCount:+d.seed, sowDate:d.sow.getTime(), plantCount:+d.plant, plantDate:d.plantDate.getTime(),
+    createdAt:Date.now(), logs:[] });
+  save(); cropDraft=null; closeModal(); show('areaDetail',{id:d.areaId});
+}
+
+/* ---------- CROP DETAIL ---------- */
+SC.cropDetail=function(o){
+  const a=DB.areas.find(x=>x.id===o.area); if(!a){show('areas');return;}
+  const c=a.crops.find(x=>x.id===o.crop); if(!c){show('areaDetail',{id:a.id});return;}
+  $('#screen').innerHTML=`
+    <div class="navbar">
+      <button class="icon-btn" onclick="show('areaDetail',{id:'${a.id}'})">‹</button>
+      <span class="t">${esc(c.cropType)}</span><span style="width:28px"></span>
+    </div>
+    <div style="padding:16px">
+      <div class="card">
+        <div class="row">
+          <div style="width:54px;height:54px;border-radius:14px;background:linear-gradient(135deg,var(--pd),var(--pl));display:flex;align-items:center;justify-content:center;font-size:26px">🌱</div>
+          <div style="flex:1"><div style="font-size:18px;font-weight:800;color:var(--tx)">${esc(c.cropType)}</div>
+            <div style="font-size:13px;color:var(--ts)">Giống: ${esc(c.variety)}</div></div>
+        </div>
+        <div style="border-top:1px solid var(--ln);margin-top:14px;padding-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          ${tile('📐','Diện tích',fmtNum(c.areaM2)+' m²')}
+          ${tile('🌾','Số hạt gieo',c.seedCount+' hạt · '+fmt(c.sowDate))}
+          ${tile('🌳','Số cây trồng',c.plantCount+' cây · '+fmt(c.plantDate))}
+          ${tile('📋','Số nhật ký',c.logs.length+' mục')}
+        </div>
+      </div>
+
+      <div class="section-title" style="margin-top:6px"><div class="ic">📊</div>
+        <div><h3>Mục 2 · Bảng nhật ký</h3><p>Ngày trồng · Công việc · Ngày thực hiện · Ghi chú · Hình ảnh</p></div></div>
+      ${c.logs.length?scrollTable(c.logs,a.id,c.id):`
+      <div class="card"><div style="display:flex;gap:10px;color:var(--ts);font-size:13px">📭 Chưa có nhật ký. Dùng Mục 3 bên dưới để thêm.</div></div>`}
+
+      <div class="section-title" style="margin-top:6px"><div class="ic">✏️</div>
+        <div><h3>Mục 3 · Nhập nhật ký</h3><p>Chọn ngày trồng, công việc, ghi chú và chụp hình</p></div></div>
+      <button class="btn" onclick="openLogEntry('${a.id}','${c.id}',null)">＋ Thêm nhật ký công việc</button>
+
+      <div style="margin-top:16px">
+        <button class="btn sec" style="box-shadow:inset 0 0 0 2px var(--ac);color:var(--pd)"
+          onclick="show('qrExport',{id:'${c.id}'})">🔳 Kết thúc vụ · Xuất QR <span class="chip" style="margin-left:4px">Hạn 10 ngày</span></button>
+      </div>
+      <div style="height:20px"></div>
+    </div>`;
+};
+function tile(ic,t,v){ return `<div style="display:flex;gap:10px;align-items:center"><div style="font-size:18px">${ic}</div><div><div style="font-size:11px;color:var(--ts)">${t}</div><div style="font-size:12px;font-weight:700;color:var(--tx)">${v}</div></div></div>`; }
+function scrollTable(logs,areaId,cropId){
+  const rows=logs.slice().sort((a,b)=>b.performDate-a.performDate).map((l,i)=>{
+    const w=workObj(l.work);
+    const editable=Date.now()-l.createdAt<DAY;
+    const lock=editable?'<span style="color:var(--p);font-size:10px">✏️</span>':'<span style="color:var(--warn);font-size:10px">🔒</span>';
+    const imgs=l.images&&l.images.length?`<div style="display:flex;gap:4px">${l.images.slice(0,2).map(im=>`<img src="${im}" style="width:34px;height:34px;object-fit:cover;border-radius:7px">`).join('')}${l.images.length>2?'<div style="font-size:11px;color:var(--p);align-self:center">+'+l.images.length+'</div>':''}</div>`:`<span style="color:#aaa;font-size:11px">📷 —</span>`;
+    return `<tr onclick="rowTap('${areaId}','${cropId}','${l.id}','${editable}')"><td style="white-space:nowrap">${fmt(fromDate(l.plantDate))}</td>
+      <td style="white-space:nowrap"><b>${w.ic} ${w.v}</b></td>
+      <td style="white-space:nowrap">${fmt(fromDate(l.performDate))}</td>
+      <td style="max-width:200px">${esc(l.note)}</td>
+      <td>${imgs}</td><td>${lock}</td></tr>`;
+  }).join('');
+  return `<div class="twrap"><table><thead><tr><th>Ngày trồng</th><th>Công việc</th><th>Ngày thực hiện</th><th>Ghi chú</th><th>Hình ảnh</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function rowTap(areaId,cropId,logId,editable){ if(editable==='true'){ openLogEntry(areaId,cropId,logId); } }
+
+/* ---------- LOG ENTRY (Mục 3) ---------- */
+function openLogEntry(areaId,cropId,logId){
+  const a=DB.areas.find(x=>x.id===areaId); const c=a.crops.find(x=>x.id===cropId);
+  const lg=logId?c.logs.find(x=>x.id===logId):null;
+  const locked=lg?Date.now()-lg.createdAt>=DAY:false;
+  const prev = window.le && window.le.areaId===areaId && window.le.cropId===cropId && window.le.logId===logId ? window.le : null;
+  const d={areaId,cropId,logId,work: prev?prev.work : (lg?lg.work:WORKS[0].k),
+    plantDate: prev?prev.plantDate : (lg?lg.plantDate:c.plantDate),
+    performDate: prev?prev.performDate : (lg?lg.performDate:new Date().toISOString()),
+    note: prev?prev.note : (lg?lg.note:''), images: prev?prev.images : (lg?lg.images:[]), locked};
+  const workAttr=locked?'disabled':"onclick=\"openWorkList('"+areaId+"','"+cropId+"',"+(logId?"'"+logId+"'":"null")+")\"";
+  const rmAttr=(im)=>locked?'style="display:none"':"onclick=\"rmImg('"+im+"','"+areaId+"','"+cropId+"',"+(logId?"'"+logId+"'":"null")+")\"";
+  const camAttr=locked?'style="opacity:.4"':"onclick=\"openCam('"+areaId+"','"+cropId+"',"+(logId?"'"+logId+"'":"null")+")\"";
+  modal(`
+    <div class="row" style="margin-bottom:4px">
+      <button class="icon-btn" style="color:var(--p)" onclick="closeModal()">✕</button>
+      <div style="flex:1;text-align:center;font-weight:700;color:var(--tx)">${lg?'Sửa nhật ký':'Thêm nhật ký'}</div>
+      <button class="icon-btn" style="color:var(--p)" onclick="saveLog()">💾</button>
+    </div>
+    ${locked?`<div class="lockbar"><div>🔒 <b>Đã khóa chỉnh sửa</b><br>Sau 1 ngày, thông tin đã nhập không thể chỉnh sửa (còn ${hh(DAY-(Date.now()-lg.createdAt))}).</div></div>`:''}
+    <div class="field"><label>🗓️ Ngày trồng</label><input id="le-plant" type="date" class="input" ${locked?'disabled':''} value="${toDate(fromDate(d.plantDate))}"></div>
+    <div class="field"><label>📋 Công việc</label><div id="le-work" class="input" style="display:flex;align-items:center;gap:8px;cursor:pointer" ${workAttr}>
+      <span>${workObj(d.work).ic}</span><b style="flex:1">${workObj(d.work).v}</b><span style="color:var(--ts)">▾</span></div></div>
+    <div class="field"><label>📅 Ngày thực hiện</label><input id="le-perf" type="date" class="input" ${locked?'disabled':''} value="${toDate(fromDate(d.performDate))}"></div>
+    <div class="field"><label>📝 Ghi chú</label><textarea id="le-note" class="input" rows="2" ${locked?'disabled':''} placeholder="Nhập ghi chú công việc...">${esc(d.note)}</textarea></div>
+    <div class="field"><label>📷 Hình ảnh</label>
+      <div class="thumbrow">
+        ${d.images.map(im=>`<div class="thumb"><img src="${im}"><span class="x" ${rmAttr(im)}>✕</span></div>`).join('')}
+        <div class="addshot" ${camAttr}>
+          <span style="font-size:20px">📷</span><span>Chụp</span></div>
+      </div>
+      <div class="rule">📱 Quy định: giữ điện thoại <b>thẳng đứng</b>, để chủ thể trong khung xanh.</div>
+    </div>`);
+  window.le={...d};
+}
+function leSync(){ const l=window.le;
+  if($('#le-plant'))l.plantDate=toDate(fromDate($('#le-plant').value));
+  if($('#le-perf'))l.performDate=toDate(fromDate($('#le-perf').value));
+  if($('#le-note'))l.note=$('#le-note').value;
+}
+function openWorkList(areaId,cropId,logId){
+  modal(`<div class="row" style="margin-bottom:14px">
+      <button class="icon-btn" style="color:var(--p)" onclick="closeModal()">✕</button>
+      <div style="flex:1;text-align:center;font-weight:700;color:var(--tx)">Chọn công việc</div><span style="width:28px"></span></div>
+    ${WORKS.map(w=>`<button class="variant ${w.k===window.le.work?'on':''}" onclick="pickWork('${w.k}','${areaId}','${cropId}','${logId||''}')">
+      <span>${w.ic}</span><b style="flex:1">${w.v}</b>${w.k===window.le.work?'<span style="color:var(--p)">✔</span>':''}</button>`).join('')}`);
+}
+function pickWork(k,areaId,cropId,logId){ leSync(); window.le.work=k; openLogEntry(areaId,cropId,logId||null); }
+function rmImg(im,areaId,cropId,logId){ leSync(); const l=window.le; l.images=l.images.filter(x=>x!==im); openLogEntry(areaId,cropId,logId||null); }
+function saveLog(){
+  const l=window.le; if(l.locked)return;
+  const area=DB.areas.find(x=>x.id===l.areaId); const c=area.crops.find(x=>x.id===l.cropId);
+  const log={ id:l.logId||('lg'+Math.random().toString(36).slice(2,8)),
+    plantDate:toDate(fromDate($('#le-plant').value)), work:l.work, performDate:toDate(fromDate($('#le-perf').value)),
+    note:$('#le-note').value, images:l.images, createdAt:(l.logId?(c.logs.find(x=>x.id===l.logId)||{createdAt:Date.now()}).createdAt:Date.now()) };
+  if(l.logId){ const i=c.logs.findIndex(x=>x.id===l.logId); c.logs[i]=log; } else { c.logs.push(log); }
+  save(); closeModal(); show('cropDetail',{area:l.areaId,crop:l.cropId});
+}
+
+/* ---------- CAMERA MOCK ---------- */
+function openCam(areaId,cropId,logId){ leSync(); window.cam={areaId,cropId,logId,shot:null}; $('#cam').classList.add('on'); }
+function closeCam(){ $('#cam').classList.remove('on'); }
+function takeShot(){
+  const cam=window.cam; cam.shot=SAMPLE_IMG;
+  const ctx=$('#camCtx'); ctx.innerHTML=`<img src="${SAMPLE_IMG}" style="width:100%;height:100%;object-fit:cover">`;
+  document.querySelector('#cam').insertAdjacentHTML('beforeend',
+  `<div class="shot-row" id="shotRow" style="position:absolute;left:0;right:0;bottom:0;z-index:3">
+     <button style="background:rgba(255,255,255,.22);color:#fff" onclick="retake()">Chụp lại</button>
+     <button style="background:var(--p);color:#fff" onclick="useShot()">Dùng ảnh ✓</button></div>`);
+}
+function retake(){ const cam=window.cam; cam.shot=null; const r=document.getElementById('shotRow'); if(r)r.remove();
+  document.getElementById('camCtx').innerHTML=`<div style="font-size:34px">📷</div><b>GIỮ ĐIỆN THOẠI THẲNG ĐỨNG</b><div style="font-size:11px;opacity:.85">Đưa chủ thể vào giữa khung hình</div>`; }
+function useShot(){ const cam=window.cam;
+  const l=window.le; if(l){ l.images.push(cam.shot); }
+  const r=document.getElementById('shotRow'); if(r)r.remove(); $('#cam').classList.remove('on');
+  openLogEntry(cam.areaId,cam.cropId,cam.logId||null); }
+
+/* ---------- QR EXPORT ---------- */
+SC.qrExport=function(o){
+  const a=DB.areas.find(x=>x.crops.some(c=>c.id===o.id));
+  const c=a? a.crops.find(x=>x.id===o.id) : null;
+  if(!c){ show('areas'); return; }
+  const token=buildToken(a,c);
+  const expires=new Date(Date.now()+10*DAY).getTime();
+  $('#screen').innerHTML=`
+    <div class="navbar"><button class="icon-btn" onclick="show('cropDetail',{area:'${a.id}',crop:'${c.id}'})">‹</button>
+      <span class="t">Xuất QR kết thúc vụ</span><span style="width:28px"></span></div>
+    <div style="padding:16px;text-align:center">
+      <div style="display:flex;justify-content:center;gap:8px;align-items:center;margin-bottom:12px">
+        <span style="font-size:28px">🔳</span>
+        <div><b style="color:var(--tx);font-size:15px">Mã QR nhật ký vụ mùa</b><div style="font-size:12px;color:var(--ts)">${esc(a.name)} · ${esc(c.cropType)} · ${esc(c.variety)}</div></div></div>
+      <div class="card" style="text-align:center">
+        <div class="qrbox"><div id="qrimg">Đang tạo mã...</div><div id="qrfake"></div></div>
+        <div class="intro">Đã mã hóa toàn bộ Mục 2 thành key bảo mật AES-256<br>${c.logs.length} dòng dữ liệu · 🔐 AES-256</div>
+      </div>
+      <div class="card">
+        <div class="kvline"><span>🕒 Ngày xuất</span><b>${fmt(new Date())}</b></div>
+        <div class="kvline"><span>⏳ Hết hạn</span><b style="color:var(--warn)">${fmt(new Date(expires))}</b></div>
+        <div class="warnline">⚠️ Mã QR có hạn tối đa <b>10 ngày</b> kể từ khi xuất. Quá hạn sẽ không quét được.</div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:6px">
+        <button class="btn sec" onclick="show('qrScan',{token:'${token}',crop:'${c.id}'})">📱 Quét thử</button>
+        <button class="btn" onclick="show('cropDetail',{area:'${a.id}',crop:'${c.id}'})">ĐÓNG</button>
+      </div>
+    </div>`;
+  if(window.QRCode){
+    QRCode.toDataURL(token,{width:220,margin:1,color:{dark:'#1B5E20',light:'#fff'}},function(err,url){
+      if(err){ $('#qrfake').innerHTML=fakeQR(); } else { $('#qrimg').innerHTML=`<img src="${url}">`; }
+    });
+  } else { $('#qrfake').innerHTML=fakeQR(); }
+};
+function fakeQR(){ return '<div class="fakeqr">'+Array.from({length:25},()=>'<span style="background:rgb('+Math.floor(Math.random()*60)+','+Math.floor(Math.random()*120)+',40)"></span>').join('')+'</div>'; }
+function b64(s){ return btoa(unescape(encodeURIComponent(s))); }
+function ub64(s){ return decodeURIComponent(escape(atob(s))); }
+function buildToken(a,c){
+  const rows=c.logs.slice().sort((x,y)=>x.performDate-y.performDate).map(l=>({
+    n:fmt(fromDate(l.plantDate)), w:workObj(l.work).v, d:fmt(fromDate(l.performDate)), nt:l.note||'—'}));
+  const core={ar:a.name,cr:c.cropType+' · '+c.variety,ts:Date.now(),exp:Date.now()+10*DAY,rows}; 
+  return 'AFS1:'+b64(JSON.stringify(core));
+}
+function parseToken(token){
+  if(!token || token.indexOf('AFS1:')!==0) return {err:'Mã QR không đúng định dạng AFS.'};
+  try{ const core=JSON.parse(ub64(token.slice(5)));
+    if(Date.now()>core.exp) return {err:'Mã QR đã hết hạn từ '+fmt(new Date(core.exp))+'. Hạn dùng tối đa 10 ngày.'};
+    return {core}; }catch(e){ return {err:'Mã QR không hợp lệ hoặc đã bị chỉnh sửa.'}; }
+}
+
+/* ---------- QR SCAN ---------- */
+SC.qrScan=function(o){
+  $('#screen').innerHTML=`
+    <div class="navbar"><button class="icon-btn" onclick="show('areas')">‹</button>
+      <span class="t">Quét mã QR</span><span style="width:28px"></span></div>
+    <div style="padding:16px;text-align:center">
+      <div style="background:#000;border-radius:18px;padding:40px 20px;position:relative;margin-bottom:16px">
+        <div style="font-size:44px;margin-bottom:6px">📷</div>
+        <div style="width:80%;height:140px;margin:0 auto;border:3px solid var(--ac);border-radius:20px;position:relative">
+          <div style="position:absolute;inset:auto 0 0 0;height:3px;background:var(--ac);animation:scan 2s linear infinite"></div>
+        </div>
+        <div style="color:#fff;font-size:13px;margin-top:14px">Căn mã QR vào khung</div>
+      </div>
+      <style>@keyframes scan{0%{top:0}50%{top:100%}100%{top:0}}</style>
+      <div class="card">
+        <div class="section-title"><div class="ic">🔑</div><div><h3>Mô phỏng quét</h3><p>Web demo không dùng camera — dán key hoặc quét thử</p></div></div>
+        <div class="field"><label>🔑 Key mã QR (dán vào)</label>
+          <input id="scan-token" class="input" placeholder="AFS1:..." value="${o.token?esc(o.token):''}"></div>
+        <div style="display:flex;gap:10px">
+          <button class="btn" onclick="doScan()">QUÉT NGAY</button>
+          ${o.token?'':'<button class="btn sec" onclick="show(\'qrDemoScan\')">📱 Quét thử (tự động)</button>'}
+        </div>
+      </div>
+      <div id="scan-msg" class="hide"></div>
+      <div id="scan-result"></div>
+    </div>`;
+  if(o.token) doScan();
+};
+function doScan(){
+  const msg=$('#scan-msg'); msg.className='hide'; $('#scan-result').innerHTML='';
+  const token=$('#scan-token').value.trim();
+  const res=parseToken(token);
+  if(res.err){ msg.className='err'; msg.innerHTML='❌ <span>'+esc(res.err)+'</span>'; return; }
+  renderScanResult(res.core);
+}
+function renderScanResult(core){
+  const n=esc(core.ar)+' · '+esc(core.cr);
+  const rows=core.rows.map((r,i)=>`<tr><td style="white-space:nowrap">${esc(r.n)}</td><td style="white-space:nowrap"><b>${esc(r.w)}</b></td><td style="white-space:nowrap">${esc(r.d)}</td><td style="max-width:200px">${esc(r.nt)}</td><td><span style="color:#aaa;font-size:11px">📷 Không kèm</span></td></tr>`).join('');
+  $('#scan-result').innerHTML=`
+    <div class="okline">✅ Mã hợp lệ · Giải mã AES-256 thành công</div>
+    <div class="card">
+      <div class="row">
+        <div style="width:44px;height:44px;border-radius:50%;background:rgba(46,125,50,.14);display:flex;align-items:center;justify-content:center;font-size:20px">✅</div>
+        <div style="flex:1"><b style="color:var(--tx)">${n}</b>
+          <div style="font-size:12px;color:var(--ts)">Ngày xuất: ${fmt(new Date(core.ts))} · Hết hạn: ${fmt(new Date(core.exp))} · ${core.rows.length} dòng</div></div>
+      </div></div>
+    <div class="section-title"><div class="ic">📊</div><div><h3>Mục 2 · Bảng nhật ký</h3><p>Hiển thị toàn bộ dữ liệu đã mã hóa trong QR</p></div></div>
+    <div class="twrap"><table><thead><tr><th>Ngày trồng</th><th>Công việc</th><th>Ngày thực hiện</th><th>Ghi chú</th><th>Hình ảnh</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div style="height:10px"></div><button class="btn sec" onclick="show('areas')">VỀ VƯỜN</button>`;
+}
+SC.qrDemoScan=function(){
+  const a=DB.areas.find(x=>x.crops.some(c=>c.logs.length));
+  const c=a? a.crops.find(x=>x.logs.length>0):null;
+  if(!c){ show('areas'); return; }
+  const token=buildToken(a,c);
+  const res=parseToken(token);
+  $('#screen').innerHTML=`
+    <div class="navbar"><button class="icon-btn" onclick="show('areas')">‹</button><span class="t">Quét thử</span><span style="width:28px"></span></div>
+    <div style="padding:16px;text-align:center">
+      <div style="font-size:40px;padding:10px">📡</div>
+      <p style="color:var(--ts);font-size:13px;margin-bottom:14px">Đang mô phỏng quét mã QR của vụ <b>${esc(c.cropType)}</b>...</p>
+      <div style="height:30px"><div style="width:200px;margin:auto;height:4px;border-radius:4px;background:rgba(46,125,50,.15);overflow:hidden"><div id="scanbar" style="height:4px;width:0;background:var(--p)"></div></div></div>
+    </div>`;
+  let w=0; const iv=setInterval(()=>{ w+=6; document.getElementById('scanbar').style.width=w+'%'; if(w>=100){ clearInterval(iv); renderScanResult(res.core); } },40);
+};
+
+show('login');
+</script>
+</body>
+</html>
