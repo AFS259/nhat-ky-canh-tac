@@ -85,9 +85,10 @@ struct QRResultView: View {
                         row(r, zebra: index % 2 == 1)
                     }
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(AppTheme.line, lineWidth: 1))
+                .background(Color.white)
             }
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(AppTheme.line, lineWidth: 1))
             .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.white))
             .shadow(color: AppTheme.cardShadow, radius: 10, y: 4)
         }

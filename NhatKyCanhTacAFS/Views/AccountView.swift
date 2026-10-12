@@ -6,7 +6,6 @@ struct AccountView: View {
     @State private var showLogoutConfirm = false
     @State private var showEdit = false
     @State private var pickerItem: PhotosPickerItem?
-    @AppStorage("qrValidDays") private var validDays: Int = QRService.defaultValidDays
 
     var body: some View {
         NavigationStack {
@@ -186,7 +185,7 @@ struct AccountView: View {
                 aboutRow("Chủ sở hữu", "AUTO FUNSION SYSTEM")
                 aboutRow("Phiên bản", "1.1 (2026)")
                 aboutRow("Bảo mật QR", "AES-256")
-                aboutRow("Thời hạn QR", "\(validDays) ngày (tùy chỉnh khi xuất)")
+                aboutRow("Thời hạn QR", "Tùy chỉnh khi xuất")
             }
         }
     }
