@@ -72,10 +72,27 @@ def make_logo(source: Image.Image):
     print("wrote Logo")
 
 
-def make_app_icon():
-    import qrcode
-    from qrcode.constants import ERROR_CORRECT_M
+def _fit_font(path: str, text: str, max_w: int, start_size: int):
+    from PIL import ImageFont
 
+    size = start_size
+    while size > 12:
+        font = ImageFont.truetype(path, size)
+        b = font.getbbox(text)
+        if (b[2] - b[0]) <= max_w:
+            return font
+        size -= 4
+    return ImageFont.truetype(path, 12)
+
+
+def _draw_text(base, text, font, xy, fill, blur=16, off=(0, 12), shadow=(0, 0, 0, 150)):
+    layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    ImageDraw.Draw(layer).text((xy[0] + off[0], xy[1] + off[1]), text, font=font, fill=shadow, anchor="mm")
+    base.alpha_composite(layer.filter(ImageFilter.GaussianBlur(blur)))
+    ImageDraw.Draw(base).text(xy, text, font=font, fill=fill, anchor="mm")
+
+
+def make_app_icon():
     W = 1024
     bg = Image.new("RGB", (W, W))
     top = (14, 61, 20)
@@ -93,31 +110,35 @@ def make_app_icon():
     gd = ImageDraw.Draw(glow)
     gd.ellipse([-160, -220, 640, 560], fill=70)
     bg.paste(Image.new("RGB", (W, W), (255, 255, 255)), (0, 0), glow.filter(ImageFilter.GaussianBlur(180)))
+    bg = bg.convert("RGBA")
 
-    # white card
-    card = (232, 190, 812, 790)
+    # white badge + seedling on top
+    cx, cy, r = W // 2, 250, 145
     shadow = Image.new("RGBA", (W, W), (0, 0, 0, 0))
-    ImageDraw.Draw(shadow).rounded_rectangle(
-        [card[0] + 10, card[1] + 24, card[2] + 10, card[3] + 24],
-        radius=120, fill=(0, 0, 0, 90),
-    )
-    bg = Image.alpha_composite(bg.convert("RGBA"), shadow.filter(ImageFilter.GaussianBlur(22)))
+    ImageDraw.Draw(shadow).ellipse([cx - r, cy - r, cx + r, cy + r], fill=(0, 0, 0, 90))
+    bg = Image.alpha_composite(bg, shadow.filter(ImageFilter.GaussianBlur(18)))
 
     layer = Image.new("RGBA", (W, W), (0, 0, 0, 0))
-    ImageDraw.Draw(layer).rounded_rectangle(card, radius=120, fill=(255, 255, 255, 255))
+    ImageDraw.Draw(layer).ellipse([cx - r, cy - r, cx + r, cy + r], fill=(255, 255, 255, 255))
     bg = Image.alpha_composite(bg, layer)
 
-    # QR inside card
-    qr = qrcode.QRCode(box_size=1, border=0, error_correction=ERROR_CORRECT_M)
-    qr.add_data("AFS1:NhatKyCanhTacAFS")
-    qr.make(fit=True)
-    qimg = qr.make_image(fill_color=(20, 70, 25), back_color="white").convert("RGBA").resize((470, 470), Image.NEAREST)
-    bg.alpha_composite(qimg, (287, 258))
+    try:
+        seed = Image.open(io.BytesIO(fetch(OPENMOJI.format("1F331")))).convert("RGBA")
+        seed = seed.resize((220, 220), Image.LANCZOS)
+        bg.alpha_composite(seed, (cx - 110, cy - 110))
+    except Exception as e:  # noqa: BLE001
+        print("seedling failed", e)
 
-    # fruit (mango) overlapping bottom-right
-    mango = Image.open(io.BytesIO(fetch(OPENMOJI.format("1F96D")))).convert("RGBA")
-    mango = mango.resize((360, 360), Image.LANCZOS).rotate(-12, expand=True, resample=Image.BICUBIC)
-    bg.alpha_composite(mango, (612, 566))
+    # AFS
+    afs_font = _fit_font(r"C:\Windows\Fonts\ariblk.ttf", "AFS", 770, 400)
+    _draw_text(bg, "AFS", afs_font, (W // 2, 585), (255, 255, 255, 255), blur=18, off=(0, 14))
+
+    # divider
+    ImageDraw.Draw(bg).rounded_rectangle([W // 2 - 130, 726, W // 2 + 130, 740], radius=7, fill=(255, 255, 255, 190))
+
+    # KHÔNG GIAN VƯỜN
+    sub_font = _fit_font(r"C:\Windows\Fonts\segoeuib.ttf", "KHÔNG GIAN VƯỜN", 840, 150)
+    _draw_text(bg, "KHÔNG GIAN VƯỜN", sub_font, (W // 2, 845), (235, 255, 235, 255), blur=14, off=(0, 9))
 
     icon = bg.convert("RGB")
     folder = os.path.join(ASSETS, "AppIcon.appiconset")
