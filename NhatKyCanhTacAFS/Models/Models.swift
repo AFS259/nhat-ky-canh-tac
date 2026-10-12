@@ -63,6 +63,9 @@ struct Crop: Identifiable, Codable, Hashable {
     var logs: [WorkLog] = []
 
     var title: String { "\(cropType) · \(variety)" }
+
+    static let empty = Crop(cropType: "", variety: "", areaM2: 0, seedCount: 0,
+                            sowDate: Date(), plantCount: 0, plantDate: Date())
 }
 
 // MARK: - Khu vực / Vườn
