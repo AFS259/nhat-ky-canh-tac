@@ -84,16 +84,18 @@ struct AppUser: Codable, Hashable {
     var passwordHash: String
     var fullName: String
     var isAdmin: Bool = false
+    var avatarFileName: String? = nil
 
-    init(username: String, passwordHash: String, fullName: String, isAdmin: Bool = false) {
+    init(username: String, passwordHash: String, fullName: String, isAdmin: Bool = false, avatarFileName: String? = nil) {
         self.username = username
         self.passwordHash = passwordHash
         self.fullName = fullName
         self.isAdmin = isAdmin
+        self.avatarFileName = avatarFileName
     }
 
     enum CodingKeys: String, CodingKey {
-        case username, passwordHash, fullName, isAdmin
+        case username, passwordHash, fullName, isAdmin, avatarFileName
     }
 
     init(from decoder: Decoder) throws {
@@ -102,5 +104,6 @@ struct AppUser: Codable, Hashable {
         passwordHash = try c.decode(String.self, forKey: .passwordHash)
         fullName = try c.decode(String.self, forKey: .fullName)
         isAdmin = try c.decodeIfPresent(Bool.self, forKey: .isAdmin) ?? false
+        avatarFileName = try c.decodeIfPresent(String.self, forKey: .avatarFileName)
     }
 }
