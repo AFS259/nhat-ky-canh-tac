@@ -287,7 +287,7 @@ struct CropSetupView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
-        .background(.white.shadow(color: AppTheme.cardShadow, radius: 8, y: -2))
+        .background(Color.white.shadow(.drop(color: AppTheme.cardShadow, radius: 8, y: -2)))
     }
 
     private var canContinue: Bool {
