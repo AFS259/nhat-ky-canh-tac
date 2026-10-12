@@ -58,6 +58,17 @@ jobs:
           path: build/export/NhatKyCanhTacAFS.ipa
           if-no-files-found: error
 
+      - name: Publish IPA to GitHub Release (direct download)
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: unsigned-latest
+          name: NhatKyCanhTacAFS (unsigned IPA)
+          body: "Bản IPA không ký mới nhất. Tải và cài bằng Sideloadly."
+          files: build/export/NhatKyCanhTacAFS.ipa
+          overwrite_files: true
+          make_latest: true
+
       - name: Publish build log to repo (on failure)
         if: failure()
         shell: bash
