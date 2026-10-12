@@ -69,10 +69,19 @@ struct AreaListView: View {
     private var hero: some View {
         HStack(spacing: 14) {
             ZStack {
-                Circle().fill(.white.opacity(0.2)).frame(width: 52, height: 52)
-                Image(systemName: "person.fill")
-                    .font(.system(size: 22))
-                    .foregroundColor(.white)
+                if let image = app.avatarImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 52, height: 52)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(.white.opacity(0.85), lineWidth: 2))
+                } else {
+                    Circle().fill(.white.opacity(0.2)).frame(width: 52, height: 52)
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(.white)
+                }
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text("Xin chào,")
