@@ -2,9 +2,14 @@ import SwiftUI
 
 struct AreaDetailView: View {
     @EnvironmentObject private var app: AppState
+    @Environment(\.dismiss) private var dismiss
     let areaID: UUID
 
     @State private var showCropSetup = false
+    @State private var showEditArea = false
+    @State private var showDeleteSheet = false
+    @State private var deletePassword = ""
+    @State private var deleteError = false
 
     private var area: Area? { app.area(id: areaID) }
 
@@ -45,10 +50,100 @@ struct AreaDetailView: View {
                     Image(systemName: "plus.circle.fill").font(.system(size: 20)).foregroundColor(.white)
                 }
             }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button { showEditArea = true } label: {
+                        Label("Chỉnh sửa vườn", systemImage: "pencil")
+                    }
+                    Button(role: .destructive) {
+                        deletePassword = ""
+                        deleteError = false
+                        showDeleteSheet = true
+                    } label: {
+                        Label("Xoá vườn", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle.fill").font(.system(size: 20)).foregroundColor(.white)
+                }
+            }
         }
         .sheet(isPresented: $showCropSetup) {
             CropSetupView(areaID: areaID)
         }
+        .sheet(isPresented: $showEditArea) {
+            if let area { AddAreaView(editingArea: area) }
+        }
+        .sheet(isPresented: $showDeleteSheet) {
+            deleteConfirmSheet
+        }
+    }
+
+    private var deleteConfirmSheet: some View {
+        NavigationStack {
+            ZStack {
+                AppTheme.screenGradient.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 18) {
+                        AFSIconBadge(icon: "trash.fill", color: AppTheme.danger)
+                            .scaleEffect(1.3)
+                            .padding(.top, 8)
+                        Text("Xoá vườn")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(AppTheme.textPrimary)
+                        Text("Nhập mật khẩu để xác nhận xoá “\(area?.name ?? "")”. Toàn bộ vụ mùa và nhật ký trong vườn sẽ bị xoá vĩnh viễn.")
+                            .font(.system(size: 13))
+                            .foregroundColor(AppTheme.textSecondary)
+                            .multilineTextAlignment(.center)
+
+                        AFSCard {
+                            AFSLabeledField(title: "Mật khẩu", icon: "lock.fill") {
+                                SecureField("Nhập mật khẩu", text: $deletePassword)
+                                    .font(.system(size: 15))
+                                    .foregroundColor(AppTheme.textPrimary)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 12)
+                                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color(hex: 0xF6FBF1)))
+                                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .stroke(deleteError ? AppTheme.danger : AppTheme.line, lineWidth: 1))
+                            }
+                        }
+
+                        if deleteError {
+                            HStack(spacing: 6) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                Text("Mật khẩu không đúng. Vui lòng thử lại.")
+                            }
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(AppTheme.danger)
+                        }
+
+                        Button { confirmDelete() } label: {
+                            Text("XOÁ VƯỜN")
+                        }
+                        .buttonStyle(AFSPrimaryButtonStyle(color: AppTheme.danger))
+                        .disabled(deletePassword.isEmpty)
+                        .opacity(deletePassword.isEmpty ? 0.5 : 1)
+
+                        Button("Hủy") { showDeleteSheet = false }
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(AppTheme.primary)
+                    }
+                    .padding(20)
+                }
+            }
+            .navigationTitle("Xác nhận xoá")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    private func confirmDelete() {
+        guard deletePassword == "2026" else {
+            deleteError = true
+            return
+        }
+        if let area { app.deleteArea(area) }
+        showDeleteSheet = false
+        dismiss()
     }
 
     private func infoCard(_ area: Area) -> some View {

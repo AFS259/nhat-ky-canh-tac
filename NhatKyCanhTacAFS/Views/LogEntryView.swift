@@ -131,6 +131,7 @@ struct LogEntryView: View {
         DatePicker("", selection: binding, displayedComponents: .date)
             .datePickerStyle(.compact)
             .labelsHidden()
+            .environment(\.locale, Locale(identifier: "vi_VN"))
             .padding(.horizontal, 14)
             .padding(.vertical, 6)
             .frame(maxWidth: .infinity, alignment: .leading)
