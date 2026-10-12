@@ -5,6 +5,9 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-15
@@ -20,7 +23,7 @@ jobs:
       - name: Build unsigned archive
         shell: bash
         run: |
-          set -euo pipefail
+          set -o pipefail
           xcodebuild \
             -project NhatKyCanhTacAFS.xcodeproj \
             -scheme NhatKyCanhTacAFS \
@@ -32,10 +35,10 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGN_ENTITLEMENTS="" \
             DEVELOPMENT_TEAM="" \
-            archive
-          echo "Archive built (unsigned)."
+            archive 2>&1 | tee build.log
 
       - name: Package unsigned IPA
+        if: success()
         shell: bash
         run: |
           set -euo pipefail
@@ -48,8 +51,21 @@ jobs:
           ls -lh build/export/
 
       - name: Upload unsigned IPA artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: NhatKyCanhTacAFS-unsigned.ipa
           path: build/export/NhatKyCanhTacAFS.ipa
           if-no-files-found: error
+
+      - name: Publish build log to repo (on failure)
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          git config user.email "actions@github.com"
+          git config user.name "github-actions"
+          cp build.log build.log.txt 2>/dev/null || true
+          git add -f build.log.txt
+          git commit -m "ci: build log [skip ci]" || true
+          git push || true
