@@ -34,16 +34,12 @@ struct LoginView: View {
     // MARK: - Header
     private var header: some View {
         VStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(LinearGradient(colors: [AppTheme.primaryLight, AppTheme.primaryDark],
-                                         startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(width: 96, height: 96)
-                    .shadow(color: AppTheme.primary.opacity(0.35), radius: 14, y: 8)
-                Image(systemName: "leaf.arrow.triangle.circlepath")
-                    .font(.system(size: 42, weight: .semibold))
-                    .foregroundColor(.white)
-            }
+            Image("LoginLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 104, height: 104)
+                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                .shadow(color: AppTheme.primary.opacity(0.35), radius: 14, y: 8)
             VStack(spacing: 4) {
                 Text("NHẬT KÝ CANH TÁC")
                     .font(.system(size: 24, weight: .heavy))
