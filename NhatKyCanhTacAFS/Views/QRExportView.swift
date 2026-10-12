@@ -8,6 +8,13 @@ struct QRExportView: View {
     @State private var token: String = ""
     @State private var payload: QRPayload?
     @State private var errorText: String?
+    @State private var daysText: String = "\(QRService.defaultValidDays)"
+
+    private var validDays: Int {
+        max(1, Int(daysText) ?? QRService.defaultValidDays)
+    }
+
+    private let dayOptions = [7, 10, 30, 60, 90]
 
     var body: some View {
         NavigationStack {
@@ -16,6 +23,7 @@ struct QRExportView: View {
                 ScrollView {
                     VStack(spacing: 18) {
                         header
+                        durationCard
 
                         if let errorText {
                             errorCard(errorText)
@@ -42,6 +50,36 @@ struct QRExportView: View {
                 }
             }
             .onAppear(perform: generate)
+            .onChange(of: daysText) { _ in generate() }
+        }
+    }
+
+    private var durationCard: some View {
+        AFSCard {
+            VStack(alignment: .leading, spacing: 12) {
+                AFSSectionTitle(icon: "hourglass", title: "Thời hạn mã QR",
+                                subtitle: "Nhập số ngày mã còn hiệu lực kể từ khi xuất.")
+                AFSLabeledField(title: "Số ngày hiệu lực", icon: "number") {
+                    AFSTextField(placeholder: "VD: 10", text: $daysText, keyboard: .numberPad)
+                }
+                HStack(spacing: 8) {
+                    ForEach(dayOptions, id: \.self) { d in
+                        Button {
+                            daysText = "\(d)"
+                        } label: {
+                            Text("\(d)n")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(validDays == d ? .white : AppTheme.primaryDark)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .fill(validDays == d ? AppTheme.primary : AppTheme.accent.opacity(0.16))
+                                )
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -94,7 +132,7 @@ struct QRExportView: View {
                 Divider().overlay(AppTheme.line)
                 HStack(spacing: 8) {
                     Image(systemName: "info.circle.fill").foregroundColor(AppTheme.gold)
-                    Text("Mã QR có hạn tối đa \(QRService.validDays) ngày kể từ khi xuất. Quá hạn sẽ không quét được.")
+                    Text("Mã QR có hiệu lực theo thời gian đã chọn (\(validDays) ngày) kể từ khi xuất. Quá hạn sẽ không quét được.")
                         .font(.system(size: 12)).foregroundColor(AppTheme.textSecondary)
                 }
             }
@@ -122,9 +160,10 @@ struct QRExportView: View {
 
     private func generate() {
         do {
-            let result = try QRService.makeToken(areaName: areaName, crop: crop)
+            let result = try QRService.makeToken(areaName: areaName, crop: crop, validDays: validDays)
             token = result.token
             payload = result.payload
+            errorText = nil
         } catch {
             errorText = "Không tạo được mã QR: \(error.localizedDescription)"
         }

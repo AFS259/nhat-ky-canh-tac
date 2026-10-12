@@ -12,6 +12,7 @@ struct AccountView: View {
                     VStack(spacing: 16) {
                         profileCard
                         statsCard
+                        if app.isAdmin { adminCard }
                         aboutCard
                         logoutButton
                     }
@@ -78,14 +79,47 @@ struct AccountView: View {
         Rectangle().fill(AppTheme.line).frame(width: 1, height: 34)
     }
 
+    private var adminCard: some View {
+        NavigationLink {
+            AdminView()
+        } label: {
+            AFSCard {
+                HStack(spacing: 14) {
+                    AFSIconBadge(icon: "shield.lefthalf.filled", color: AppTheme.gold)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Trang quản trị")
+                            .font(.system(size: 16, weight: .bold)).foregroundColor(AppTheme.textPrimary)
+                        Text("Xem tất cả tài khoản và vụ mùa canh tác")
+                            .font(.system(size: 12)).foregroundColor(AppTheme.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(AppTheme.textSecondary.opacity(0.6))
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
     private var aboutCard: some View {
         AFSCard {
             VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Spacer()
+                    Image("Logo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 76, height: 76)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    Spacer()
+                }
                 AFSSectionTitle(icon: "info.circle", title: "Thông tin ứng dụng", subtitle: nil)
-                aboutRow("Ứng dụng", "Nhật Ký Canh Tác AFS")
+                aboutRow("Ứng dụng", "Nhật Ký Canh Tác")
                 aboutRow("Chủ sở hữu", "AUTO FUNSION SYSTEM")
-                aboutRow("Phiên bản", "1.0 (2026)")
-                aboutRow("Bảo mật QR", "AES-256 · Hạn 10 ngày")
+                aboutRow("Phiên bản", "1.1 (2026)")
+                aboutRow("Bảo mật QR", "AES-256")
+                aboutRow("Thời hạn QR", "\(QRService.defaultValidDays) ngày (tùy chỉnh khi xuất)")
             }
         }
     }

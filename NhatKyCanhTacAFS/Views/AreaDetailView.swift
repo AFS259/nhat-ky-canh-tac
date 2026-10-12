@@ -131,9 +131,10 @@ struct CropCard: View {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .fill(AppTheme.accent.opacity(0.18))
                             .frame(width: 46, height: 46)
-                        Image(systemName: "sprout.fill")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(AppTheme.primaryDark)
+                        Image(CropCatalog.asset(for: crop.cropType))
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 30, height: 30)
                     }
                     VStack(alignment: .leading, spacing: 3) {
                         Text(crop.cropType)

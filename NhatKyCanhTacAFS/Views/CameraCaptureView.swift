@@ -167,7 +167,7 @@ struct CameraCaptureView: View {
             Text("Chưa được cấp quyền Camera")
                 .font(.system(size: 17, weight: .bold))
                 .foregroundColor(.white)
-            Text("Vào Cài đặt > AFS > Camera để bật quyền.")
+            Text("Vào Cài đặt > Nhật Ký Canh Tác > Camera để bật quyền.")
                 .font(.system(size: 13))
                 .foregroundColor(.white.opacity(0.8))
             Button {

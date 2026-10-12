@@ -74,9 +74,12 @@ struct CropDetailView: View {
                 HStack(spacing: 12) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(AppTheme.heroGradient)
+                            .fill(AppTheme.accent.opacity(0.2))
                             .frame(width: 54, height: 54)
-                        Image(systemName: "sprout.fill").font(.system(size: 24)).foregroundColor(.white)
+                        Image(CropCatalog.asset(for: crop.cropType))
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 36, height: 36)
                     }
                     VStack(alignment: .leading, spacing: 3) {
                         Text(crop.cropType).font(.system(size: 18, weight: .bold)).foregroundColor(AppTheme.textPrimary)
@@ -160,7 +163,7 @@ struct CropDetailView: View {
                 Image(systemName: "qrcode")
                 Text("Kết thúc vụ · Xuất QR")
                 Spacer()
-                Text("Hạn 10 ngày").font(.system(size: 11)).opacity(0.85)
+                Text("Hạn tùy chọn").font(.system(size: 11)).opacity(0.85)
             }
             .font(.system(size: 15, weight: .semibold))
             .foregroundColor(AppTheme.primaryDark)

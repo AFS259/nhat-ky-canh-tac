@@ -240,11 +240,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Nhat Ky Canh Tac AFS";
+				INFOPLIST_KEY_CFBundleDisplayName = "Nhật Ký Canh Tác";
 				INFOPLIST_KEY_NSCameraUsageDescription = "AFS can dung camera de chup anh nhat ky canh tac.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "AFS can luu anh nhat ky vao thu vien anh.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "AFS can truy cap thu vien anh de dinh kem nhat ky.";
@@ -260,7 +260,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.autofusionsystem.nhatkycanhtac;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -275,11 +275,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Nhat Ky Canh Tac AFS";
+				INFOPLIST_KEY_CFBundleDisplayName = "Nhật Ký Canh Tác";
 				INFOPLIST_KEY_NSCameraUsageDescription = "AFS can dung camera de chup anh nhat ky canh tac.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "AFS can luu anh nhat ky vao thu vien anh.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "AFS can truy cap thu vien anh de dinh kem nhat ky.";
@@ -295,7 +295,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.autofusionsystem.nhatkycanhtac;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

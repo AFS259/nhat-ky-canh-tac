@@ -12,16 +12,8 @@ struct ScanHomeView: View {
                 ScrollView {
                     VStack(spacing: 18) {
                         hero
+                        scanButton
                         steps
-                        Button {
-                            scanning = true
-                        } label: {
-                            HStack(spacing: 10) {
-                                Image(systemName: "qrcode.viewfinder").font(.system(size: 19))
-                                Text("MỞ CAMERA QUÉT MÃ").font(.system(size: 15, weight: .bold))
-                            }
-                        }
-                        .buttonStyle(AFSPrimaryButtonStyle())
                     }
                     .padding(18)
                 }
@@ -53,6 +45,18 @@ struct ScanHomeView: View {
         }
     }
 
+    private var scanButton: some View {
+        Button {
+            scanning = true
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "qrcode.viewfinder").font(.system(size: 19))
+                Text("MỞ CAMERA QUÉT MÃ").font(.system(size: 15, weight: .bold))
+            }
+        }
+        .buttonStyle(AFSPrimaryButtonStyle())
+    }
+
     private var hero: some View {
         VStack(spacing: 14) {
             ZStack {
@@ -74,7 +78,7 @@ struct ScanHomeView: View {
                 AFSSectionTitle(icon: "info.circle", title: "Hướng dẫn", subtitle: nil)
                 stepRow(1, "Đưa mã QR của vụ mùa vào giữa khung hình.")
                 stepRow(2, "Hệ thống giải mã key bảo mật AES-256.")
-                stepRow(3, "Kiểm tra hạn: mã có hiệu lực tối đa 10 ngày.")
+                stepRow(3, "Kiểm tra hạn: mã có hiệu lực theo thời gian.")
                 stepRow(4, "Hiển thị toàn bộ bảng nhật ký (Mục 2).")
             }
         }

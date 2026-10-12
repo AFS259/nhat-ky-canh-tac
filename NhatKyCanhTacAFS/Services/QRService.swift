@@ -25,7 +25,8 @@ enum QRService {
     /// Khóa bí mật dùng để mã hóa QR thành key (đổi khi phát hành chính thức).
     private static let secret = "AFS-AUTO-FUSION-SYSTEM-2026-SECRET"
     private static let prefix = "AFS1:"
-    static let validDays = 10
+    /// Thời hạn mặc định khi xuất mã QR (ngày).
+    static let defaultValidDays = 10
 
     private static var symmetricKey: SymmetricKey {
         let digest = SHA256.hash(data: Data(secret.utf8))
@@ -40,13 +41,15 @@ enum QRService {
     }()
 
     // MARK: - Mã hóa
-    static func makeToken(areaName: String, crop: Crop) throws -> (token: String, payload: QRPayload) {
+    static func makeToken(areaName: String, crop: Crop,
+                          validDays: Int = defaultValidDays) throws -> (token: String, payload: QRPayload) {
+        let days = max(1, validDays)
         let now = Date()
         let payload = QRPayload(
             areaName: areaName,
             crop: crop.title,
             issuedAt: now,
-            expiresAt: Calendar.current.date(byAdding: .day, value: validDays, to: now) ?? now,
+            expiresAt: Calendar.current.date(byAdding: .day, value: days, to: now) ?? now,
             rows: crop.logs
                 .sorted { $0.performDate < $1.performDate }
                 .map { QRRow(plantDate: df.string(from: $0.plantDate),
@@ -60,7 +63,7 @@ enum QRService {
         return (prefix + combined.base64EncodedString(), payload)
     }
 
-    // MARK: - Giải mã (kiểm tra hạn 10 ngày)
+    // MARK: - Giải mã (kiểm tra hạn đã đặt khi xuất)
     static func decode(token: String) -> Result<QRPayload, QRServiceError> {
         guard token.hasPrefix(prefix) else { return .failure(.invalidFormat) }
         let base64 = String(token.dropFirst(prefix.count))
@@ -103,7 +106,7 @@ enum QRServiceError: Error, LocalizedError {
         case .encryptFailed: return "Không tạo được mã QR."
         case .invalidFormat: return "Mã QR không đúng định dạng AFS."
         case .decryptFailed: return "Mã QR không hợp lệ hoặc đã bị chỉnh sửa."
-        case .expired(let date): return "Mã QR đã hết hạn từ \(QRService.format(date)). Hạn dùng tối đa 10 ngày."
+        case .expired(let date): return "Mã QR đã hết hạn từ \(QRService.format(date)). Thời hạn mã được đặt khi xuất."
         }
     }
 }

@@ -13,8 +13,8 @@ $gh = (Get-Command gh -ErrorAction SilentlyContinue).Source
 if (-not $gh) { $gh = "C:\Program Files\GitHub CLI\gh.exe" }
 if (-not (Test-Path $gh)) { throw "Khong tim thay gh. Chay: winget install --id GitHub.cli" }
 
-& $gh auth login || exit 1
-& $gh auth status || exit 1
+& $gh auth login; if (-not $?) { exit 1 }
+& $gh auth status; if (-not $?) { exit 1 }
 
 # Tạo repo public + đẩy code hiện tại lên
 & $gh repo create nhat-ky-canh-tac --public --source . --remote origin --push
@@ -26,3 +26,4 @@ if ($?) {
 } else {
   Write-Host "Repo co the da ton tai. Thu: git remote -v ; git push -u origin main" -ForegroundColor Yellow
 }
+

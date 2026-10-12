@@ -17,21 +17,8 @@ struct CropSetupView: View {
 
     private let totalSteps = 5
 
-    private let cropCatalog: [(name: String, icon: String, varieties: [String])] = [
-        ("Ổi", "leaf.fill", ["Ổi Đài Loan", "Ổi Lê", "Ổi Nữ Hoàng"]),
-        ("Xoài", "leaf.fill", ["Xoài Cát Chu", "Xoài Cát Hòa Lộc", "Xoài Đài Loan"]),
-        ("Bưởi", "leaf.fill", ["Bưởi Da Xanh", "Bưởi Năm Roi", "Bưởi Tân Triều"]),
-        ("Cam", "leaf.fill", ["Cam Sành", "Cam Vinh", "Cam Xoàn"]),
-        ("Chanh", "leaf.fill", ["Chanh Dây", "Chanh Không Hạt", "Chanh Tứ Quý"]),
-        ("Thanh Long", "leaf.fill", ["Thanh Long Ruột Đỏ", "Thanh Long Ruột Trắng"]),
-        ("Dưa Hấu", "leaf.fill", ["Dưa Hấu Black Lady", "Dưa Hấu Hắc Mỹ Nhân"]),
-        ("Cà Chua", "leaf.fill", ["Cà Chua Cherry", "Cà Chua Bi", "Cà Chua Beef"]),
-        ("Ớt", "leaf.fill", ["Ớt Chỉ Thiên", "Ớt Hiểm", "Ớt Sừng"]),
-        ("Nho", "leaf.fill", ["Nho Ninh Thuận", "Nho Mẫu Đơn"]),
-    ]
-
     private var suggestedVarieties: [String] {
-        cropCatalog.first { $0.name.caseInsensitiveCompare(cropType) == .orderedSame }?.varieties ?? []
+        CropCatalog.varieties(for: cropType)
     }
 
     var body: some View {
@@ -108,14 +95,33 @@ struct CropSetupView: View {
                        subtitle: "Chọn nhanh hoặc tự nhập tên loại cây.")
             AFSTextField(placeholder: "VD: Ổi", text: $cropType)
 
+            if !cropType.trimmingCharacters(in: .whitespaces).isEmpty {
+                HStack(spacing: 10) {
+                    Image(CropCatalog.asset(for: cropType))
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 30, height: 30)
+                    Text("Biểu tượng nhận diện · \(cropType)")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(AppTheme.primaryDark)
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Capsule().fill(AppTheme.accent.opacity(0.18)))
+            }
+
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 10)], spacing: 10) {
-                ForEach(cropCatalog, id: \.name) { item in
+                ForEach(CropCatalog.items) { item in
                     Button {
                         cropType = item.name
                         variety = ""
                     } label: {
                         HStack(spacing: 6) {
-                            Image(systemName: itemsIcon(item.name)).font(.system(size: 12))
+                            Image(item.asset)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
                             Text(item.name).font(.system(size: 13, weight: .semibold))
                         }
                         .foregroundColor(cropType == item.name ? .white : AppTheme.primaryDark)
@@ -130,8 +136,6 @@ struct CropSetupView: View {
             }
         }
     }
-
-    private func itemsIcon(_ name: String) -> String { "leaf.fill" }
 
     private var varietyStep: some View {
         VStack(alignment: .leading, spacing: 16) {

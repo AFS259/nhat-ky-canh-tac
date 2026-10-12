@@ -8,6 +8,8 @@ struct LoginView: View {
     @State private var fullName = ""
     @State private var isRegister = false
     @State private var showPassword = false
+    @State private var googleLoading = false
+    @State private var googleError: String?
     @FocusState private var focus: Field?
 
     private enum Field { case username, password, fullName }
@@ -29,6 +31,11 @@ struct LoginView: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
+        .alert("Đăng nhập Google", isPresented: Binding(get: { googleError != nil }, set: { if !$0 { googleError = nil } })) {
+            Button("Đóng", role: .cancel) {}
+        } message: {
+            Text(googleError ?? "")
+        }
     }
 
     // MARK: - Header
@@ -48,10 +55,6 @@ struct LoginView: View {
                 Text("NHẬT KÝ CANH TÁC")
                     .font(.system(size: 24, weight: .heavy))
                     .foregroundColor(AppTheme.primaryDark)
-                Text("A F S")
-                    .font(.system(size: 14, weight: .bold))
-                    .tracking(8)
-                    .foregroundColor(AppTheme.accent)
                 Text("Thuộc AUTO FUNSION SYSTEM")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(AppTheme.textSecondary)
@@ -126,7 +129,60 @@ struct LoginView: View {
                 }
                 .buttonStyle(AFSPrimaryButtonStyle())
                 .padding(.top, 4)
+
+                dividerOr
+
+                googleButton
             }
+        }
+    }
+
+    private var dividerOr: some View {
+        HStack(spacing: 10) {
+            Rectangle().fill(AppTheme.line).frame(height: 1)
+            Text("hoặc").font(.system(size: 12)).foregroundColor(AppTheme.textSecondary)
+            Rectangle().fill(AppTheme.line).frame(height: 1)
+        }
+    }
+
+    private var googleButton: some View {
+        Button {
+            focus = nil
+            Task { await doGoogleSignIn() }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "g.circle.fill")
+                    .font(.system(size: 19))
+                    .foregroundColor(Color(hex: 0xDB4437))
+                Text(isRegister ? "ĐĂNG KÝ BẰNG GOOGLE" : "ĐĂNG NHẬP BẰNG GOOGLE")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(AppTheme.textPrimary)
+                if googleLoading {
+                    Spacer()
+                    ProgressView()
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.white)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(AppTheme.line, lineWidth: 1)
+            )
+        }
+        .disabled(googleLoading)
+    }
+
+    @MainActor
+    private func doGoogleSignIn() async {
+        googleLoading = true
+        defer { googleLoading = false }
+        do {
+            let profile = try await GoogleAuth.signIn()
+            _ = app.loginWithGoogle(email: profile.email, fullName: profile.name)
+        } catch {
+            googleError = error.localizedDescription
         }
     }
 
@@ -146,9 +202,6 @@ struct LoginView: View {
 
     private var footer: some View {
         VStack(spacing: 6) {
-            Text("Tài khoản dùng thử:  afs  /  1234")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(AppTheme.textSecondary)
             Text("© 2026 AUTO FUNSION SYSTEM")
                 .font(.system(size: 11))
                 .foregroundColor(AppTheme.textSecondary.opacity(0.8))

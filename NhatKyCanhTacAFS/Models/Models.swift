@@ -80,4 +80,24 @@ struct AppUser: Codable, Hashable {
     var username: String
     var passwordHash: String
     var fullName: String
+    var isAdmin: Bool = false
+
+    init(username: String, passwordHash: String, fullName: String, isAdmin: Bool = false) {
+        self.username = username
+        self.passwordHash = passwordHash
+        self.fullName = fullName
+        self.isAdmin = isAdmin
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case username, passwordHash, fullName, isAdmin
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        username = try c.decode(String.self, forKey: .username)
+        passwordHash = try c.decode(String.self, forKey: .passwordHash)
+        fullName = try c.decode(String.self, forKey: .fullName)
+        isAdmin = try c.decodeIfPresent(Bool.self, forKey: .isAdmin) ?? false
+    }
 }

@@ -74,6 +74,17 @@ final class AppState: ObservableObject {
     // MARK: - Auth
     var isLoggedIn: Bool { currentUser != nil }
 
+    /// Tài khoản quản trị: xem được tất cả tài khoản và vụ mùa trên thiết bị.
+    var isAdmin: Bool { currentUser?.isAdmin ?? false }
+
+    /// Toàn bộ người dùng đã đăng ký trên thiết bị (dành cho quản trị).
+    var allUsers: [AppUser] { users }
+
+    /// Vườn / khu vực của một người dùng bất kỳ (dành cho quản trị).
+    func areas(for username: String) -> [Area] {
+        areasByUser[username] ?? []
+    }
+
     private func hash(_ text: String) -> String {
         let digest = SHA256.hash(data: Data(text.utf8))
         return digest.map { String(format: "%02x", $0) }.joined()
@@ -113,6 +124,28 @@ final class AppState: ObservableObject {
         return false
     }
 
+    /// Đăng nhập / tạo tài khoản bằng tài khoản Google (email đã xác thực).
+    @discardableResult
+    func loginWithGoogle(email: String, fullName: String) -> Bool {
+        let name = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !name.isEmpty else {
+            lastError = "Google không trả về email."
+            return false
+        }
+        if let existing = users.first(where: { $0.username.lowercased() == name }) {
+            currentUser = existing
+        } else {
+            let user = AppUser(username: name, passwordHash: hash(UUID().uuidString),
+                               fullName: fullName.isEmpty ? name : fullName)
+            users.append(user)
+            areasByUser[name] = []
+            currentUser = user
+        }
+        lastError = nil
+        save()
+        return true
+    }
+
     func logout() {
         currentUser = nil
         save()
@@ -128,12 +161,28 @@ final class AppState: ObservableObject {
                 currentUser = users.first { $0.username == name }
             }
         }
-        if users.isEmpty {
-            let demo = AppUser(username: "afs", passwordHash: hash("1234"), fullName: "Kỹ thuật viên AFS")
-            users = [demo]
-            areasByUser["afs"] = []
+        ensureAdminExists()
+    }
+
+    /// Bảo đảm luôn có tài khoản quản trị AFS / 2026.
+    private func ensureAdminExists() {
+        let adminName = "AFS"
+        let adminHash = hash("2026")
+        if let i = users.firstIndex(where: { $0.username.caseInsensitiveCompare(adminName) == .orderedSame }) {
+            var changed = false
+            if !users[i].isAdmin { users[i].isAdmin = true; changed = true }
+            if users[i].passwordHash != adminHash { users[i].passwordHash = adminHash; changed = true }
+            if users[i].fullName.isEmpty { users[i].fullName = "Quản trị viên AFS"; changed = true }
+            if areasByUser[users[i].username] == nil { areasByUser[users[i].username] = []; changed = true }
+            if changed { save() }
+        } else {
+            let admin = AppUser(username: adminName, passwordHash: adminHash,
+                                fullName: "Quản trị viên AFS", isAdmin: true)
+            users.append(admin)
+            areasByUser[adminName] = areasByUser[adminName] ?? []
             save()
         }
+        if users.isEmpty { save() }
     }
 
     private func save() {
