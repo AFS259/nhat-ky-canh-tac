@@ -42,6 +42,7 @@ final class AppState: ObservableObject {
         list.append(area)
         areasByUser[key] = list
         save()
+        syncToSheet(area)
     }
 
     func updateArea(_ area: Area) {
@@ -51,6 +52,7 @@ final class AppState: ObservableObject {
             list[i] = area
             areasByUser[key] = list
             save()
+            syncToSheet(area)
         }
     }
 
@@ -63,6 +65,7 @@ final class AppState: ObservableObject {
         list[i] = copy
         areasByUser[key] = list
         save()
+        syncToSheet(copy)
     }
 
     func deleteArea(_ area: Area) {
@@ -71,6 +74,13 @@ final class AppState: ObservableObject {
         list.removeAll { $0.id == area.id }
         areasByUser[key] = list
         save()
+        GoogleSheetService.deleteArea(area, username: key)
+    }
+
+    // MARK: - Google Sheet sync (mỗi khu vực một sheet)
+    private func syncToSheet(_ area: Area) {
+        guard let username = currentUser?.username else { return }
+        GoogleSheetService.syncArea(area, username: username)
     }
 
     // MARK: - Auth
