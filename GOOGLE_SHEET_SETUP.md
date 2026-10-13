@@ -1,7 +1,7 @@
-# KẾT NỐI GOOGLE SHEET — LƯU DỮ LIỆU CHỮ TỪ APP iOS
+# KẾT NỐI GOOGLE SHEET — LƯU DỮ LIỆU TỪ APP iOS
 
-App tự động gửi dữ liệu chữ lên Google Sheet **mỗi khi lưu** (thêm/sửa khu vực, vụ, nhật ký; xoá khu vực).
-Quy tắc: **mỗi KHU VỰC (Area) = một sheet riêng**; trong mỗi sheet ghi thông tin khu vực, từng **vụ canh tác** và **bảng nhật ký** của vụ đó.
+App tự động gửi dữ liệu (chữ + ảnh minh chứng) lên Google Sheet **mỗi khi lưu** (thêm/sửa khu vực, vụ, nhật ký; xoá khu vực).
+Quy tắc: **mỗi KHU VỰC (Area) = một sheet riêng**; trong mỗi sheet ghi thông tin khu vực, từng **vụ canh tác**, **bảng nhật ký** và **ảnh minh chứng** của từng dòng nhật ký.
 
 - File Apps Script: `google-apps-script/Code.gs`
 - File app: `NhatKyCanhTacAFS/Services/GoogleSheetService.swift`
@@ -69,13 +69,13 @@ Số hạt gieo | <...>
 Ngày gieo | dd/MM/yyyy
 Số cây trồng | <...>
 Ngày trồng | dd/MM/yyyy
-STT | Ngày trồng | Công việc | Ngày thực hiện | Ghi chú | Số ảnh
-1   | ... | ... | ... | ... | <số ảnh>
+STT | Ngày trồng | Công việc | Ngày thực hiện | Ghi chú | Ảnh 1 | Ảnh 2 | ...
+1   | ... | ... | ... | ... | <ảnh minh chứng> | <ảnh thứ 2> | ...
 ... (vụ tiếp theo)
 ```
 
 - Sheet ẩn `_AFS_INDEX` lưu ánh xạ `UUID khu vực → tên sheet` (đừng xoá).
-- **Chỉ dữ liệu chữ được đồng bộ.** Ảnh minh chứng chỉ lưu trên máy, chỉ gửi kèm **số lượng ảnh** (cột "Số ảnh").
+- **Ảnh minh chứng gửi kèm thật** (app co nhỏ ~480px, nén JPEG trước khi gửi); Apps Script giải mã base64 và gắn ảnh trực tiếp vào sheet ở các cột "Ảnh 1, Ảnh 2, ...". Ảnh gốc vẫn được giữ nguyên trên máy.
 
 ---
 
@@ -83,7 +83,7 @@ STT | Ngày trồng | Công việc | Ngày thực hiện | Ghi chú | Số ảnh
 
 - `AppState` gọi `syncToSheet(_:)` sau `addArea` / `updateArea` / `updateArea(id:transform:)`.
 - Xoá khu vực → gọi `GoogleSheetService.deleteArea(...)` để xoá sheet tương ứng.
-- `GoogleSheetService` đóng gói `Area → Crop → WorkLog` thành JSON và `POST` lên Web App (`dataTask`, không chặn giao diện).
+- `GoogleSheetService` đóng gói `Area → Crop → WorkLog` thành JSON (ảnh nén thành base64) và `POST` lên Web App (`dataTask`, không chặn giao diện).
 - Vì gửi **ghi đè toàn bộ khu vực** mỗi lần lưu, sheet luôn phản ánh đúng trạng thái hiện tại.
 
 ---
@@ -96,4 +96,5 @@ STT | Ngày trồng | Công việc | Ngày thực hiện | Ghi chú | Số ảnh
 | Sửa code mà không thấy đổi | Chưa tạo **version mới** khi deploy (bước 1 lưu ý). |
 | Không thấy sheet mới | Kiểm tra `SPREADSHEET_ID` đúng sheet; app đã đăng nhập; mạng OK. |
 | Sheet không cập nhật nhật ký mới | Mỗi lần lưu app gửi lại cả khu vực; thử thêm/sửa rồi mở lại Sheet. |
+| Thấy số cột "Ảnh 1, Ảnh 2" nhưng không thấy ảnh | Phần lớn do app cài trên máy còn bản cũ (chỉ gửi số ảnh). Cài lại bản app mới nhất rồi lưu khu vực. |
 | Báo lỗi quyền khi deploy | Chọn lại **Execute as: Me**, hoàn tất màn hình cấp quyền (Advanced → Allow). |

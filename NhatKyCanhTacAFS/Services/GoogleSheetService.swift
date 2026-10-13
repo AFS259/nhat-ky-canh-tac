@@ -1,7 +1,7 @@
 import Foundation
 
-/// Đồng bộ dữ liệu chữ (khu vực → vụ → nhật ký) lên Google Sheet qua Apps Script Web App.
-/// Mỗi khu vực (Area) được ghi thành một sheet riêng.
+/// Đồng bộ dữ liệu (khu vực → vụ → nhật ký, kèm ảnh minh chứng) lên Google Sheet
+/// qua Apps Script Web App. Mỗi khu vực (Area) được ghi thành một sheet riêng.
 enum GoogleSheetService {
 
     /// URL Web App của Google Apps Script (kết thúc bằng /exec).
@@ -47,7 +47,7 @@ enum GoogleSheetService {
         let work: String
         let performDate: String
         let note: String
-        let imageCount: Int
+        let images: [String]
     }
 
     // MARK: - API
@@ -88,7 +88,9 @@ enum GoogleSheetService {
                                 work: log.work.rawValue,
                                 performDate: Fmt.day.string(from: log.performDate),
                                 note: log.note,
-                                imageCount: log.images.count
+                                images: log.images.compactMap {
+                                    ImageStore.jpegData(for: $0).map { $0.base64EncodedString() }
+                                }
                             )
                         }
                 )

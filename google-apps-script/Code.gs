@@ -4,7 +4,8 @@
  * ============================================================================
  *  Nhiệm vụ: nhận JSON do app gửi (doPost) và ghi vào Google Sheet.
  *  Quy tắc: mỗi KHU VỰC (Area) = một sheet riêng.
- *  Trong mỗi sheet: thông tin khu vực + từng VỤ (cây trồng) kèm bảng NHẬT KÝ.
+ *  Trong mỗi sheet: thông tin khu vực + từng VỤ (cây trồng) kèm bảng NHẬT KÝ
+ *  và ảnh minh chứng (gửi dạng base64, app đã co nhỏ sẵn).
  *
  *  CÀI ĐẶT:
  *   1. Mở Google Sheet đích → menu  Tiện ích mở rộng (Extensions) → Apps Script.
@@ -120,6 +121,11 @@ function padRows_(rows) {
   return out;
 }
 
+/** Kiểm tra chuỗi base64 hợp lệ. */
+function isValidImage_(b64) {
+  return typeof b64 === 'string' && b64.length > 0 && /^[A-Za-z0-9+/=]+$/.test(b64);
+}
+
 // ---------------------------------------------------------------------------
 //  Core: ghi 1 khu vực
 // ---------------------------------------------------------------------------
@@ -166,6 +172,7 @@ function syncArea_(body) {
 
 function writeArea_(sheet, area, username) {
   var rows = [];
+  var logRows = []; // { rowIndex, images[] } dòng nhật ký có ảnh
   var crops = area.crops || [];
 
   rows.push(['NHẬT KÝ CANH TÁC AFS']);
@@ -189,21 +196,35 @@ function writeArea_(sheet, area, username) {
     rows.push(['Ngày gieo', String(crop.sowDate || '')]);
     rows.push(['Số cây trồng', String(crop.plantCount != null ? crop.plantCount : '')]);
     rows.push(['Ngày trồng', String(crop.plantDate || '')]);
-    rows.push(['STT', 'Ngày trồng', 'Công việc', 'Ngày thực hiện', 'Ghi chú', 'Số ảnh']);
 
     var logs = crop.logs || [];
+    var maxImgs = 0;
+    logs.forEach(function (log) {
+      var imgs = (log.images || []).filter(isValidImage_);
+      if (imgs.length > maxImgs) maxImgs = imgs.length;
+    });
+
+    var header = ['STT', 'Ngày trồng', 'Công việc', 'Ngày thực hiện', 'Ghi chú'];
+    for (var h = 1; h <= maxImgs; h++) header.push('Ảnh ' + h);
+    rows.push(header);
+
     if (logs.length === 0) {
-      rows.push(['', '', '(chưa có nhật ký)', '', '', '']);
+      rows.push(['', '', '(chưa có nhật ký)', '', '']);
     }
     logs.forEach(function (log, i) {
-      rows.push([
+      var imgs = (log.images || []).filter(isValidImage_);
+      var row = [
         String(i + 1),
         String(log.plantDate || ''),
         String(log.work || ''),
         String(log.performDate || ''),
-        String(log.note || ''),
-        String(log.imageCount != null ? log.imageCount : 0)
-      ]);
+        String(log.note || '')
+      ];
+      for (var j = 0; j < maxImgs; j++) row.push('');
+      rows.push(row);
+      if (imgs.length > 0) {
+        logRows.push({ rowIndex: rows.length, images: imgs });
+      }
     });
     rows.push([]);
   });
@@ -213,6 +234,22 @@ function writeArea_(sheet, area, username) {
   if (data.length > 0) {
     sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
   }
+
+  // Gắn ảnh minh chứng (base64) vào sheet, bắt đầu từ cột F (6).
+  var imgCols = [];
+  logRows.forEach(function (lr) {
+    lr.images.forEach(function (b64, j) {
+      try {
+        var blob = Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg');
+        sheet.insertImage(blob, 6 + j, lr.rowIndex);
+        if (imgCols.indexOf(6 + j) < 0) imgCols.push(6 + j);
+      } catch (e) {}
+    });
+    try { sheet.setRowHeight(lr.rowIndex, 150); } catch (e) {}
+  });
+  imgCols.forEach(function (col) {
+    try { sheet.setColumnWidth(col, 150); } catch (e) {}
+  });
 
   // Định dạng nhẹ cho dễ nhìn.
   sheet.getRange(1, 1).setFontSize(14).setFontWeight('bold');
