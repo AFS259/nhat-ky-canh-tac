@@ -406,6 +406,7 @@ struct AdminCropView: View {
                             }
                         } else {
                             LogTable(logs: crop.logs.sorted { $0.performDate > $1.performDate },
+                                     workAsset: { WorkCatalog.asset(forName: $0) ?? WorkCatalog.defaultAsset },
                                      onEdit: { _ in },
                                      onViewImages: { gallery = $0 })
                         }
