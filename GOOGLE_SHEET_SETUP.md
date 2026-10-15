@@ -74,8 +74,9 @@ STT | Ngày trồng | Công việc | Ngày thực hiện | Ghi chú | Ảnh 1 | 
 ... (vụ tiếp theo)
 ```
 
+- Trang tính được **trang trí màu sắc** (tông xanh nông nghiệp): tiêu đề nền xanh đậm, tiêu đề mỗi vụ nền xanh, tiêu đề bảng xanh sáng, ô nhãn/giá trị và sọc so le, viền và gộp ô gọn gàng.
 - Sheet ẩn `_AFS_INDEX` lưu ánh xạ `UUID khu vực → tên sheet` (đừng xoá).
-- **Ảnh minh chứng gửi kèm thật** (app co nhỏ ~480px, nén JPEG trước khi gửi); Apps Script giải mã base64 và gắn ảnh trực tiếp vào sheet ở các cột "Ảnh 1, Ảnh 2, ...". Ảnh gốc vẫn được giữ nguyên trên máy.
+- **Ảnh minh chứng là LINK**: app co nhỏ ~480px (nén JPEG) rồi gửi; Apps Script tải ảnh lên Google Drive tại thư mục `AFS_NhatKyCanhTac_Images/<UUID khu vực>` (mở quyền "ai có link đều xem"), rồi ghi link vào các cột "Ảnh 1, Ảnh 2, ...". **Bấm vào link trong sheet để XEM hoặc TẢI ảnh.** Ảnh gốc vẫn giữ nguyên trên máy.
 
 ---
 
@@ -97,4 +98,6 @@ STT | Ngày trồng | Công việc | Ngày thực hiện | Ghi chú | Ảnh 1 | 
 | Không thấy sheet mới | Kiểm tra `SPREADSHEET_ID` đúng sheet; app đã đăng nhập; mạng OK. |
 | Sheet không cập nhật nhật ký mới | Mỗi lần lưu app gửi lại cả khu vực; thử thêm/sửa rồi mở lại Sheet. |
 | Thấy số cột "Ảnh 1, Ảnh 2" nhưng không thấy ảnh | Phần lớn do app cài trên máy còn bản cũ (chỉ gửi số ảnh). Cài lại bản app mới nhất rồi lưu khu vực. |
+| Có cột "Ảnh" nhưng ô trống, không phải link | Script chưa được cấp quyền Google Drive. Chạy hàm `authorize` một lần trong Apps Script editor (Run → Advanced → Allow), rồi tạo **New version** để deploy. |
+| Link ảnh yêu cầu đăng nhập khi bấm | Ảnh chưa mở quyền công khai; kiểm tra thư mục `AFS_NhatKyCanhTac_Images` trên Drive. |
 | Báo lỗi quyền khi deploy | Chọn lại **Execute as: Me**, hoàn tất màn hình cấp quyền (Advanced → Allow). |

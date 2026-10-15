@@ -77,6 +77,41 @@ final class AppState: ObservableObject {
         GoogleSheetService.deleteArea(area, username: key)
     }
 
+    // MARK: - Quản trị: xoá tài khoản đã đăng ký
+    /// Kiểm tra mật khẩu quản trị (mặc định "2026").
+    func verifyAdminPassword(_ password: String) -> Bool {
+        guard let admin = users.first(where: { $0.isAdmin }) else { return false }
+        return admin.passwordHash == hash(password)
+    }
+
+    /// Xoá một tài khoản đã đăng ký cùng toàn bộ dữ liệu của tài khoản đó.
+    /// Chỉ quản trị viên thực hiện được; không xoá được tài khoản quản trị.
+    @discardableResult
+    func deleteUser(_ user: AppUser) -> Bool {
+        guard isAdmin else {
+            lastError = "Chỉ quản trị viên mới được xoá tài khoản."
+            return false
+        }
+        guard !user.isAdmin else {
+            lastError = "Không thể xoá tài khoản quản trị."
+            return false
+        }
+        guard let i = users.firstIndex(where: { $0.username == user.username }) else { return false }
+
+        let userAreas = areasByUser[user.username] ?? []
+        for area in userAreas {
+            GoogleSheetService.deleteArea(area, username: user.username)
+        }
+        if let fn = user.avatarFileName, let url = avatarURL(fn) {
+            try? FileManager.default.removeItem(at: url)
+        }
+        areasByUser[user.username] = nil
+        users.remove(at: i)
+        lastError = nil
+        save()
+        return true
+    }
+
     // MARK: - Google Sheet sync (mỗi khu vực một sheet)
     private func syncToSheet(_ area: Area) {
         guard let username = currentUser?.username else { return }

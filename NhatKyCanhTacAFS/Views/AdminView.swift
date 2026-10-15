@@ -148,7 +148,11 @@ struct AdminUserCard: View {
 
 struct AdminUserView: View {
     @EnvironmentObject private var app: AppState
+    @Environment(\.dismiss) private var dismiss
     let user: AppUser
+
+    @State private var showDelete = false
+    @State private var didDelete = false
 
     private var areas: [Area] { app.areas(for: user.username).sorted { $0.createdAt > $1.createdAt } }
     private var cropCount: Int { areas.reduce(0) { $0 + $1.crops.count } }
@@ -196,6 +200,10 @@ struct AdminUserView: View {
                             .buttonStyle(.plain)
                         }
                     }
+
+                    if !user.isAdmin {
+                        deleteButton
+                    }
                 }
                 .padding(16)
                 .padding(.bottom, 30)
@@ -203,6 +211,25 @@ struct AdminUserView: View {
         }
         .navigationTitle(user.fullName)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showDelete, onDismiss: {
+            if didDelete { dismiss() }
+        }) {
+            AdminDeleteUserSheet(user: user) { didDelete = true }
+                .environmentObject(app)
+        }
+    }
+
+    private var deleteButton: some View {
+        Button(role: .destructive) {
+            showDelete = true
+        } label: {
+            HStack {
+                Image(systemName: "trash.fill")
+                Text("XOÁ TÀI KHOẢN").font(.system(size: 15, weight: .bold))
+            }
+        }
+        .buttonStyle(AFSPrimaryButtonStyle(color: AppTheme.danger))
+        .padding(.top, 4)
     }
 
     private func stat(_ value: String, _ label: String) -> some View {
@@ -407,4 +434,103 @@ struct AdminCropView: View {
 private struct GalleryBox: Identifiable {
     let names: [String]
     var id: String { "\(names.count)-\(names.first ?? "")" }
+}
+
+// MARK: - Xác nhận xoá tài khoản (yêu cầu mật khẩu quản trị)
+struct AdminDeleteUserSheet: View {
+    @EnvironmentObject private var app: AppState
+    @Environment(\.dismiss) private var dismiss
+    let user: AppUser
+    let onDeleted: () -> Void
+
+    @State private var password = ""
+    @State private var error: String?
+    @FocusState private var focused: Bool
+
+    private var areaCount: Int { app.areas(for: user.username).count }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppTheme.screenGradient.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 18) {
+                        warningCard
+                        passwordField
+                        if let error {
+                            HStack(spacing: 6) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                Text(error).font(.system(size: 12, weight: .medium))
+                            }
+                            .foregroundColor(AppTheme.danger)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        Button {
+                            confirm()
+                        } label: {
+                            Text("XOÁ TÀI KHOẢN")
+                        }
+                        .buttonStyle(AFSPrimaryButtonStyle(color: AppTheme.danger))
+
+                        Button("Huỷ") { dismiss() }
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(AppTheme.textSecondary)
+                    }
+                    .padding(16)
+                    .padding(.bottom, 24)
+                }
+                .scrollDismissesKeyboard(.interactively)
+            }
+            .navigationTitle("Xác nhận xoá")
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear { focused = true }
+        }
+    }
+
+    private var warningCard: some View {
+        AFSCard(padding: 18) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    AFSIconBadge(icon: "trash.fill", color: AppTheme.danger)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(user.fullName).font(.system(size: 16, weight: .bold)).foregroundColor(AppTheme.textPrimary)
+                        Text("@\(user.username)").font(.system(size: 12)).foregroundColor(AppTheme.textSecondary)
+                    }
+                    Spacer()
+                }
+                Divider().overlay(AppTheme.line)
+                Text("Tài khoản này cùng \(areaCount) khu vực và toàn bộ nhật ký sẽ bị xoá vĩnh viễn trên thiết bị. Không thể hoàn tác.")
+                    .font(.system(size: 13)).foregroundColor(AppTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var passwordField: some View {
+        AFSCard(padding: 18) {
+            AFSLabeledField(title: "Nhập mật khẩu quản trị để tiếp tục", icon: "lock.fill") {
+                SecureField("Mật khẩu", text: $password)
+                    .font(.system(size: 15))
+                    .foregroundColor(AppTheme.textPrimary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 13)
+                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color(hex: 0xF6FBF1)))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(AppTheme.line, lineWidth: 1))
+                    .focused($focused)
+            }
+        }
+    }
+
+    private func confirm() {
+        guard app.verifyAdminPassword(password) else {
+            error = "Mật khẩu quản trị không đúng."
+            return
+        }
+        if app.deleteUser(user) {
+            dismiss()
+            onDeleted()
+        } else {
+            error = app.lastError ?? "Không xoá được tài khoản."
+        }
+    }
 }

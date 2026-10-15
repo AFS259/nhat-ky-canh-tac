@@ -17,6 +17,15 @@
  *      → Deploy → copy URL /exec → dán vào GoogleSheetService.swift
  *
  *  LƯU Ý: Đổi URL sau khi deploy thì phải cập nhật lại trong app.
+ *
+ *  GHI CHÚ ẢNH MINH CHỨNG (dạng LINK):
+ *  - App gửi ảnh dạng base64 (đã co nhỏ ~480px, nén JPEG).
+ *  - Script tải ảnh lên Google Drive (thư mục AFS_NhatKyCanhTac_Images/<areaKey>),
+ *    mở quyền "ai có link đều xem được", rồi ghi LINK vào ô "Ảnh 1, Ảnh 2...".
+ *    Bấm vào link trong Sheet để XEM hoặc TẢI ảnh trực tiếp.
+ *  - Mỗi lần ghi lại (resync) thì xoá ảnh cũ trong thư mục của khu vực trước,
+ *    tránh tạo file trùng lặp trên Drive.
+ *  - CẦN quyền Google Drive khi cấp quyền cho script.
  * ============================================================================
  */
 
@@ -26,11 +35,69 @@ const SPREADSHEET_ID = '1Jk461TKiDvHJv6dh8LZQ6lBltJpWFkChzI2coYo4QQQ';
 // Sheet ẩn lưu bảng ánh xạ areaKey (UUID) → tên sheet
 const INDEX_SHEET = '_AFS_INDEX';
 
+// Thư mục Google Drive gốc chứa ảnh minh chứng (mỗi khu vực = 1 thư mục con)
+const IMAGE_FOLDER_NAME = 'AFS_NhatKyCanhTac_Images';
+
+// Bảng màu & kiểu chữ cho trang tính (tông xanh nông nghiệp)
+const THEME = {
+  titleBg:    '#1B5E20', // xanh lá đậm  – nền tiêu đề
+  sectionBg:  '#2E7D32', // xanh lá       – nền tiêu đề VỤ
+  tableHeadBg:'#43A047', // xanh lá sáng  – nền tiêu đề bảng
+  labelBg:    '#C8E6C9', // xanh nhạt     – nền ô nhãn
+  infoBg:     '#F1F8E9', // xanh rất nhạt – nền ô giá trị
+  zebraBg:    '#F7FBF3', // sọc so le
+  border:     '#A5D6A7', // viền
+  textDark:   '#1B2E1B',
+  footer:     '#7A8B7A'
+};
+const FONT = 'Arial';
+
 // ---------------------------------------------------------------------------
 //  Entry points
 // ---------------------------------------------------------------------------
 function doGet() {
   return json_({ ok: true, service: 'AFS Nhat Ky Canh Tac', time: new Date().toISOString() });
+}
+
+/**
+ * CHẠY HÀM NÀY ĐỂ CẤP QUYỀN (chạy lại bất cứ lúc nào cần cấp lại).
+ * Cách làm: chọn hàm 'authorize' ở thanh trên → bấm Run (Chạy)
+ *   → Review permissions → chọn tài khoản → Advanced → Go to project → Allow.
+ *
+ * Hàm này chủ động tạo thử 1 file trong thư mục ảnh rồi xoá đi, để Google
+ * thực sự xin và ghi nhớ quyền GHI + chia sẻ Google Drive. Nếu chỉ ĐỌC thì
+ * quyền upload ảnh sẽ bị thiếu, khiến script không tạo được LINK.
+ *
+ * Nếu bấm Run mà KHÔNG hiện bảng xin quyền (Google còn nhớ quyền cũ):
+ *   vào https://myaccount.google.com/permissions → xoá quyền của project này,
+ *   rồi quay lại Apps Script bấm Run lại.
+ *
+ * Sau khi cấp quyền: Deploy → Manage deployments → (bút chì) → Version: New version → Deploy.
+ */
+function authorize() {
+  // 1) Quyền Google Sheets (đọc spreadsheet đích).
+  var ss = getSpreadsheet_();
+  Logger.log('OK đọc spreadsheet: ' + ss.getName());
+
+  // 2) Quyền Google Drive: lấy hoặc tạo thư mục gốc chứa ảnh.
+  var root;
+  var found = DriveApp.getFoldersByName(IMAGE_FOLDER_NAME);
+  root = found.hasNext() ? found.next() : DriveApp.createFolder(IMAGE_FOLDER_NAME);
+  Logger.log('OK thư mục ảnh: ' + root.getName());
+
+  // 3) Quyền GHI + CHIA SẺ Drive: tạo thử 1 file, mở quyền xem, rồi xoá.
+  var probe = root.createFile(Utilities.newBlob('AFS', 'text/plain', 'afs_authorize_probe.txt'));
+  try {
+    probe.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    Logger.log('OK chia sẻ công khai file thử.');
+  } catch (e) {
+    Logger.log('CANH BAO: không đặt được quyền công khai: ' + e);
+  }
+  Logger.log('OK link file thử: https://drive.google.com/file/d/' + probe.getId() + '/view');
+  probe.setTrashed(true);
+  Logger.log('ĐÃ XOÁ file thử. HOÀN TẤT CẤP QUYỀN.');
+
+  return 'Đã cấp quyền Google Sheets + Drive. Giờ vào Deploy → Manage deployments → New version → Deploy.';
 }
 
 function doPost(e) {
@@ -121,10 +188,53 @@ function padRows_(rows) {
   return out;
 }
 
-/** Kiểm tra chuỗi base64 hợp lệ. */
-function isValidImage_(b64) {
-  return typeof b64 === 'string' && b64.length > 0 && /^[A-Za-z0-9+/=]+$/.test(b64);
+/**
+ * Chuẩn hoá chuỗi base64 ảnh: bỏ tiền tố "data:image/...;base64," (nếu có),
+ * bỏ khoảng trắng/xuống dòng. Trả '' nếu không hợp lệ.
+ */
+function cleanImage_(b64) {
+  if (typeof b64 !== 'string') return '';
+  var i = b64.indexOf('base64,');
+  if (i >= 0) b64 = b64.substring(i + 7);
+  b64 = b64.replace(/\s+/g, '');
+  return /^[A-Za-z0-9+/=]+$/.test(b64) ? b64 : '';
 }
+
+// ---------------------------------------------------------------------------
+//  Google Drive: lưu ảnh & tạo link xem/tải
+// ---------------------------------------------------------------------------
+
+/** Lấy (hoặc tạo) thư mục Drive con cho một khu vực. */
+function getAreaImageFolder_(areaKey) {
+  var root;
+  var found = DriveApp.getFoldersByName(IMAGE_FOLDER_NAME);
+  root = found.hasNext() ? found.next() : DriveApp.createFolder(IMAGE_FOLDER_NAME);
+  var sub = root.getFoldersByName(areaKey);
+  return sub.hasNext() ? sub.next() : root.createFolder(areaKey);
+}
+
+/** Đưa toàn bộ file cũ vào thùng rác để resync không tạo file trùng. */
+function clearFolder_(folder) {
+  var files = folder.getFiles();
+  while (files.hasNext()) {
+    try { files.next().setTrashed(true); } catch (e) {}
+  }
+}
+
+/**
+ * Tải 1 ảnh base64 lên Drive, mở quyền xem cho mọi người có link.
+ * Trả URL xem/tải (file view page) hoặc ném lỗi.
+ */
+function uploadImageLink_(folder, b64, name) {
+  var blob = Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg', name);
+  var file = folder.createFile(blob);
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (e) {}
+  var id = file.getId();
+  return 'https://drive.google.com/file/d/' + id + '/view';
+}
+
 
 // ---------------------------------------------------------------------------
 //  Core: ghi 1 khu vực
@@ -160,59 +270,97 @@ function syncArea_(body) {
     try { sheet.setName(desired); sheetName = desired; } catch (e) {}
   }
 
-  writeArea_(sheet, area, username);
+  var imgStats = writeArea_(sheet, area, username);
 
   idx.getRange(row, 2).setValue(sheetName);
   idx.getRange(row, 3).setValue(username);
   idx.getRange(row, 4).setValue(areaName);
   idx.getRange(row, 5).setValue(new Date());
 
-  return { ok: true, sheet: sheetName, crops: (area.crops || []).length };
+  return {
+    ok: true,
+    sheet: sheetName,
+    crops: (area.crops || []).length,
+    imagesLinked: imgStats.linked,
+    imageErrors: imgStats.imageErrors
+  };
 }
 
 function writeArea_(sheet, area, username) {
-  var rows = [];
-  var logRows = []; // { rowIndex, images[] } dòng nhật ký có ảnh
   var crops = area.crops || [];
+  var rows = [];
+  var logRows = [];      // { rowIndex, images[] }
+  var infoRows = [];     // dòng nhãn/giá trị (khu vực và vụ)
+  var sectionRows = [];  // dòng tiêu đề VỤ
+  var spacerRows = [];   // dòng phân cách
+  var tableHeaders = []; // dòng tiêu đề bảng nhật ký
+  var tableBodies = [];  // { first, last, cols } vùng dữ liệu bảng
 
-  rows.push(['NHẬT KÝ CANH TÁC AFS']);
-  rows.push(['Khu vực', String(area.name || '')]);
-  if (area.address) rows.push(['Địa chỉ', String(area.address)]);
-  if (area.note) rows.push(['Ghi chú', String(area.note)]);
-  rows.push(['Ngày tạo', String(area.createdAt || '')]);
-  rows.push(['Người dùng', username]);
-  rows.push(['Cập nhật', Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'dd/MM/yyyy HH:mm')]);
+  // ----- Tiêu đề chính -----
+  rows.push(['🌱  NHẬT KÝ CANH TÁC AFS']);
+  var titleRow = rows.length;
+
+  // ----- Thông tin khu vực -----
+  function info(label, value) {
+    if (value === undefined || value === null || value === '') return;
+    rows.push([label, String(value)]);
+    infoRows.push(rows.length);
+  }
+  info('KHU VỰC', area.name || '');
+  info('ĐỊA CHỈ', area.address || '');
+  info('GHI CHÚ', area.note || '');
+  info('NGÀY TẠO', area.createdAt || '');
+  info('NGƯỜI DÙNG', username);
+  info('CẬP NHẬT', Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'dd/MM/yyyy HH:mm'));
+
   rows.push([]);
+  spacerRows.push(rows.length);
 
   if (crops.length === 0) {
     rows.push(['Chưa có vụ canh tác nào trong khu vực.']);
   }
 
   crops.forEach(function (crop) {
-    rows.push(['VỤ', String(crop.cropType || '') + ' · ' + String(crop.variety || '')]);
-    rows.push(['Giống', String(crop.variety || '')]);
-    rows.push(['Diện tích (m²)', String(crop.areaM2 || '')]);
-    rows.push(['Số hạt gieo', String(crop.seedCount != null ? crop.seedCount : '')]);
-    rows.push(['Ngày gieo', String(crop.sowDate || '')]);
-    rows.push(['Số cây trồng', String(crop.plantCount != null ? crop.plantCount : '')]);
-    rows.push(['Ngày trồng', String(crop.plantDate || '')]);
+    // ----- Tiêu đề vụ -----
+    rows.push(['🌾  VỤ · ' + String(crop.cropType || '') + '  ·  ' + String(crop.variety || '')]);
+    sectionRows.push(rows.length);
+
+    function cinfo(label, value) {
+      if (value === undefined || value === null || value === '') return;
+      rows.push([label, String(value)]);
+      infoRows.push(rows.length);
+    }
+    cinfo('GIỐNG', crop.variety || '');
+    cinfo('DIỆN TÍCH (m²)', crop.areaM2 || '');
+    cinfo('SỐ HẠT GIEO', crop.seedCount != null ? crop.seedCount : '');
+    cinfo('NGÀY GIEO', crop.sowDate || '');
+    cinfo('SỐ CÂY TRỒNG', crop.plantCount != null ? crop.plantCount : '');
+    cinfo('NGÀY TRỒNG', crop.plantDate || '');
 
     var logs = crop.logs || [];
     var maxImgs = 0;
     logs.forEach(function (log) {
-      var imgs = (log.images || []).filter(isValidImage_);
+      var imgs = (log.images || []).map(cleanImage_).filter(function (s) { return s.length > 0; });
       if (imgs.length > maxImgs) maxImgs = imgs.length;
     });
 
+    rows.push([]);
+    spacerRows.push(rows.length);
+
+    // ----- Bảng nhật ký -----
     var header = ['STT', 'Ngày trồng', 'Công việc', 'Ngày thực hiện', 'Ghi chú'];
     for (var h = 1; h <= maxImgs; h++) header.push('Ảnh ' + h);
     rows.push(header);
+    tableHeaders.push(rows.length);
 
+    var bodyFirst = rows.length + 1;
     if (logs.length === 0) {
-      rows.push(['', '', '(chưa có nhật ký)', '', '']);
+      var empty = ['', '', '(chưa có nhật ký)', '', ''];
+      for (var e = 0; e < maxImgs; e++) empty.push('');
+      rows.push(empty);
     }
     logs.forEach(function (log, i) {
-      var imgs = (log.images || []).filter(isValidImage_);
+      var imgs = (log.images || []).map(cleanImage_).filter(function (s) { return s.length > 0; });
       var row = [
         String(i + 1),
         String(log.plantDate || ''),
@@ -226,36 +374,187 @@ function writeArea_(sheet, area, username) {
         logRows.push({ rowIndex: rows.length, images: imgs });
       }
     });
-    rows.push([]);
+    tableBodies.push({ first: bodyFirst, last: rows.length, cols: 5 + maxImgs });
   });
+
+  rows.push([]);
+  spacerRows.push(rows.length);
+  rows.push(['Báo cáo tạo tự động bởi ứng dụng AFS · ' +
+             Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'dd/MM/yyyy HH:mm')]);
+  var footerRow = rows.length;
 
   sheet.clear();
+
+  // Xoá ảnh overlay còn sót (sheet.clear() không xoá ảnh đã gắn bằng insertImage).
+  try { sheet.getImages().forEach(function (img) { img.remove(); }); } catch (e) {}
+
   var data = padRows_(rows);
+  var lastCol = data.length > 0 ? data[0].length : 5;
   if (data.length > 0) {
-    sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
+    sheet.getRange(1, 1, data.length, lastCol).setValues(data);
   }
 
-  // Gắn ảnh minh chứng (base64) vào sheet, bắt đầu từ cột F (6).
+  // Tải ảnh minh chứng lên Google Drive rồi ghi LINK vào ô "Ảnh 1, Ảnh 2...".
+  // Bấm vào link để XEM / TẢI ảnh.
   var imgCols = [];
+  var imgCells = [];     // ô chứa link ảnh (để căn giữa)
+  var linked = 0;
+  var imageErrors = [];
+  var folder = null;
+  if (logRows.length > 0) {
+    try {
+      folder = getAreaImageFolder_(String(area.key || 'unknown'));
+      clearFolder_(folder);
+    } catch (e) {
+      folder = null;
+      imageErrors.push('drive:' + String(e && e.message ? e.message : e));
+    }
+  }
   logRows.forEach(function (lr) {
     lr.images.forEach(function (b64, j) {
+      var col = 6 + j;
       try {
-        var blob = Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg');
-        sheet.insertImage(blob, 6 + j, lr.rowIndex);
-        if (imgCols.indexOf(6 + j) < 0) imgCols.push(6 + j);
-      } catch (e) {}
+        if (!folder) throw new Error('Không tạo được thư mục Drive (thiếu quyền?)');
+        var name = 'img_' + lr.rowIndex + '_' + col + '.jpg';
+        var url = uploadImageLink_(folder, b64, name);
+        var link = SpreadsheetApp.newRichTextValue()
+          .setText('Xem / Tải ảnh')
+          .setLinkUrl(url)
+          .build();
+        sheet.getRange(lr.rowIndex, col).setRichTextValue(link);
+        linked++;
+        if (imgCols.indexOf(col) < 0) imgCols.push(col);
+        imgCells.push({ row: lr.rowIndex, col: col });
+      } catch (e) {
+        imageErrors.push('row' + lr.rowIndex + ':col' + col + ':' + String(e && e.message ? e.message : e));
+        if (imageErrors.length > 5) imageErrors.length = 5;
+      }
     });
-    try { sheet.setRowHeight(lr.rowIndex, 150); } catch (e) {}
-  });
-  imgCols.forEach(function (col) {
-    try { sheet.setColumnWidth(col, 150); } catch (e) {}
   });
 
-  // Định dạng nhẹ cho dễ nhìn.
-  sheet.getRange(1, 1).setFontSize(14).setFontWeight('bold');
-  sheet.setColumnWidth(1, 110);
-  sheet.setColumnWidth(3, 160);
-  sheet.setColumnWidth(5, 280);
+  applyAreaFormat_(sheet, {
+    titleRow: titleRow,
+    infoRows: infoRows,
+    sectionRows: sectionRows,
+    spacerRows: spacerRows,
+    tableHeaders: tableHeaders,
+    tableBodies: tableBodies,
+    footerRow: footerRow
+  }, lastCol, imgCols, imgCells);
+
+  return { linked: linked, imageErrors: imageErrors };
+}
+
+// ---------------------------------------------------------------------------
+//  Trang trí: màu sắc, viền, gộp ô, kích thước cột/dòng
+// ---------------------------------------------------------------------------
+function applyAreaFormat_(sheet, meta, lastCol, imgCols, imgCells) {
+  var all = sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns());
+  all.setBackground(null)
+     .setFontColor(THEME.textDark)
+     .setFontFamily(FONT)
+     .setFontSize(10)
+     .setFontWeight('normal')
+     .setFontStyle('normal')
+     .setHorizontalAlignment('left')
+     .setVerticalAlignment('middle')
+     .setWrap(false)
+     .setBorder(false, false, false, false, false, false);
+
+  var solid = SpreadsheetApp.BorderStyle.SOLID;
+
+  // Tiêu đề chính
+  var title = sheet.getRange(meta.titleRow, 1, 1, lastCol);
+  if (lastCol > 1) title.merge();
+  title.setBackground(THEME.titleBg)
+       .setFontColor('#FFFFFF')
+       .setFontSize(16)
+       .setFontWeight('bold')
+       .setHorizontalAlignment('center')
+       .setVerticalAlignment('middle');
+  sheet.setRowHeight(meta.titleRow, 46);
+
+  // Ô nhãn / giá trị
+  meta.infoRows.forEach(function (r) {
+    sheet.getRange(r, 1).setBackground(THEME.labelBg)
+         .setFontWeight('bold').setFontColor(THEME.textDark);
+    if (lastCol > 2) {
+      var val = sheet.getRange(r, 2, 1, lastCol - 1);
+      val.merge();
+      val.setBackground(THEME.infoBg);
+    } else {
+      sheet.getRange(r, 2).setBackground(THEME.infoBg);
+    }
+    sheet.getRange(r, 1, 1, lastCol)
+         .setBorder(true, true, true, true, true, true, THEME.border, solid);
+  });
+
+  // Tiêu đề VỤ
+  meta.sectionRows.forEach(function (r) {
+    var g = sheet.getRange(r, 1, 1, lastCol);
+    if (lastCol > 1) g.merge();
+    g.setBackground(THEME.sectionBg)
+     .setFontColor('#FFFFFF')
+     .setFontSize(12)
+     .setFontWeight('bold')
+     .setVerticalAlignment('middle');
+    sheet.setRowHeight(r, 30);
+  });
+
+  // Tiêu đề bảng nhật ký
+  meta.tableHeaders.forEach(function (r) {
+    sheet.getRange(r, 1, 1, lastCol)
+         .setBackground(THEME.tableHeadBg)
+         .setFontColor('#FFFFFF')
+         .setFontWeight('bold')
+         .setHorizontalAlignment('center')
+         .setVerticalAlignment('middle')
+         .setWrap(true)
+         .setBorder(true, true, true, true, true, true, THEME.border, solid);
+    sheet.setRowHeight(r, 30);
+  });
+
+  // Dữ liệu bảng: sọc so le + viền + xuống dòng
+  meta.tableBodies.forEach(function (b) {
+    var n = b.last - b.first + 1;
+    if (n <= 0) return;
+    var range = sheet.getRange(b.first, 1, n, b.cols);
+    range.setWrap(true).setVerticalAlignment('middle')
+         .setBorder(true, true, true, true, true, true, THEME.border, solid);
+    for (var i = 1; i < n; i += 2) {
+      sheet.getRange(b.first + i, 1, 1, b.cols).setBackground(THEME.zebraBg);
+    }
+    sheet.getRange(b.first, 1, n, 1).setHorizontalAlignment('center');
+    if (b.cols >= 2) sheet.getRange(b.first, 2, n, 1).setHorizontalAlignment('center');
+    if (b.cols >= 4) sheet.getRange(b.first, 4, n, 1).setHorizontalAlignment('center');
+  });
+
+  // Ô link ảnh: căn giữa + độ rộng cột
+  (imgCells || []).forEach(function (c) {
+    try { sheet.getRange(c.row, c.col).setHorizontalAlignment('center'); } catch (e) {}
+  });
+  (imgCols || []).forEach(function (col) {
+    try { sheet.setColumnWidth(col, 130); } catch (e) {}
+  });
+
+  // Dòng phân cách mỏng
+  meta.spacerRows.forEach(function (r) {
+    try { sheet.setRowHeight(r, 8); } catch (e) {}
+  });
+
+  // Dòng chân trang
+  var foot = sheet.getRange(meta.footerRow, 1, 1, lastCol);
+  if (lastCol > 1) foot.merge();
+  foot.setFontColor(THEME.footer).setFontStyle('italic').setFontSize(9)
+      .setHorizontalAlignment('center');
+
+  // Kích thước cột
+  sheet.setColumnWidth(1, 140);
+  if (lastCol >= 2) sheet.setColumnWidth(2, 190);
+  if (lastCol >= 3) sheet.setColumnWidth(3, 170);
+  if (lastCol >= 4) sheet.setColumnWidth(4, 130);
+  if (lastCol >= 5) sheet.setColumnWidth(5, 300);
+  sheet.setFrozenRows(meta.titleRow);
 }
 
 // ---------------------------------------------------------------------------
