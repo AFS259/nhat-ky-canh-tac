@@ -246,6 +246,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Nhật Ký Canh Tác";
 				INFOPLIST_KEY_NSCameraUsageDescription = "AFS can dung camera de chup anh nhat ky canh tac.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "AFS can vi tri hien tai de xac dinh toa do khu vuc canh tac tren ban do.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "AFS can luu anh nhat ky vao thu vien anh.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "AFS can truy cap thu vien anh de dinh kem nhat ky.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -281,6 +282,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Nhật Ký Canh Tác";
 				INFOPLIST_KEY_NSCameraUsageDescription = "AFS can dung camera de chup anh nhat ky canh tac.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "AFS can vi tri hien tai de xac dinh toa do khu vuc canh tac tren ban do.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "AFS can luu anh nhat ky vao thu vien anh.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "AFS can truy cap thu vien anh de dinh kem nhat ky.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

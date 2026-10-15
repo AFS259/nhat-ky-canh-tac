@@ -2,6 +2,8 @@ import SwiftUI
 import Foundation
 import MapKit
 import CoreLocation
+import Combine
+import UIKit
 
 /// Vị trí người dùng chọn trên bản đồ.
 struct PickedLocation: Identifiable {
@@ -11,9 +13,11 @@ struct PickedLocation: Identifiable {
     let address: String
 }
 
-/// Chọn vị trí trên bản đồ (kéo bản đồ, ghim ở tâm). Không cần quyền vị trí.
+/// Chọn vị trí trên bản đồ (kéo bản đồ, ghim ở tâm).
+/// Hỗ trợ nút "Vị trí hiện tại" lấy GPS từ điện thoại.
 struct LocationPickerView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     @State private var region: MKCoordinateRegion
     @State private var address = "Đang xác định địa chỉ..."
@@ -21,6 +25,10 @@ struct LocationPickerView: View {
     @State private var query = ""
     @State private var results: [MKMapItem] = []
     @State private var searching = false
+    @State private var locating = false
+    @State private var showPermissionAlert = false
+
+    @StateObject private var locator = CurrentLocationProvider()
 
     private let onPick: (PickedLocation) -> Void
     private let geocoder = CLGeocoder()
@@ -50,6 +58,10 @@ struct LocationPickerView: View {
                     searchBar
                     if !results.isEmpty { resultsList }
                     Spacer()
+                    HStack {
+                        Spacer()
+                        currentLocationButton
+                    }
                     bottomCard
                 }
                 .padding(14)
@@ -68,7 +80,50 @@ struct LocationPickerView: View {
                 }
             }
             .onAppear(perform: refreshAddress)
+            .onReceive(locator.$lastLocation.compactMap { $0 }) { loc in
+                locating = false
+                withAnimation {
+                    region = MKCoordinateRegion(center: loc.coordinate,
+                                                span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005))
+                }
+                reverseGeocode(loc.coordinate) { address = $0 }
+            }
+            .onReceive(locator.$status) { status in
+                locating = false
+                if status == .denied || status == .restricted { showPermissionAlert = true }
+            }
+            .alert("Chưa được cấp quyền vị trí", isPresented: $showPermissionAlert) {
+                Button("Mở Cài đặt") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                }
+                Button("Đóng", role: .cancel) {}
+            } message: {
+                Text("Vào Cài đặt → Nhật Ký Canh Tác → Vị trí → \"Khi dùng ứng dụng\" để bật.")
+            }
         }
+    }
+
+    /// Nút lấy vị trí hiện tại từ GPS điện thoại.
+    private var currentLocationButton: some View {
+        Button {
+            locating = true
+            locator.request()
+            // Nếu GPS trả về chậm, tự tắt trạng thái sau 8 giây.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 8) { locating = false }
+        } label: {
+            ZStack {
+                Circle().fill(.white).frame(width: 46, height: 46)
+                    .shadow(color: AppTheme.cardShadow, radius: 6, y: 2)
+                if locating {
+                    ProgressView().scaleEffect(0.9)
+                } else {
+                    Image(systemName: "location.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(AppTheme.primary)
+                }
+            }
+        }
+        .accessibilityLabel("Vị trí hiện tại")
     }
 
     /// Ghim nhỏ, nằm giữa bản đồ; đầu ghim trùng tâm màn hình.
@@ -140,6 +195,33 @@ struct LocationPickerView: View {
                     .lineLimit(3)
                 Spacer(minLength: 0)
             }
+
+            HStack(spacing: 10) {
+                Button {
+                    openGoogleMaps(region.center)
+                } label: {
+                    Label("Google Maps", systemImage: "arrow.up.right.square")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(AppTheme.primaryDark)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(AppTheme.accent.opacity(0.16)))
+                }
+                Button {
+                    locating = true
+                    locator.request()
+                } label: {
+                    Label("Vị trí hiện tại", systemImage: "location.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(AppTheme.primaryDark)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(AppTheme.accent.opacity(0.16)))
+                }
+            }
+
             Button {
                 confirm()
             } label: {
@@ -155,6 +237,12 @@ struct LocationPickerView: View {
         .padding(14)
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.white))
         .shadow(color: AppTheme.cardShadow, radius: 10, y: 3)
+    }
+
+    private func openGoogleMaps(_ coord: CLLocationCoordinate2D) {
+        guard let url = URL(string: "https://www.google.com/maps/search/?api=1&query=\(coord.latitude),\(coord.longitude)")
+        else { return }
+        openURL(url)
     }
 
     private func runSearch() {
@@ -212,5 +300,49 @@ struct LocationPickerView: View {
             completion(unique.isEmpty ? String(format: "%.5f, %.5f", coord.latitude, coord.longitude)
                                       : unique.joined(separator: ", "))
         }
+    }
+}
+
+/// Lấy vị trí hiện tại từ GPS điện thoại (CoreLocation).
+final class CurrentLocationProvider: NSObject, ObservableObject, CLLocationManagerDelegate {
+    @Published var lastLocation: CLLocation?
+    @Published var status: CLAuthorizationStatus = .notDetermined
+
+    private let manager = CLLocationManager()
+
+    override init() {
+        super.init()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyBest
+        status = manager.authorizationStatus
+    }
+
+    /// Yêu cầu quyền (nếu cần) rồi lấy vị trí hiện tại.
+    func request() {
+        switch manager.authorizationStatus {
+        case .notDetermined:
+            manager.requestWhenInUseAuthorization()
+        case .authorizedWhenInUse, .authorizedAlways:
+            manager.requestLocation()
+        case .denied, .restricted:
+            status = manager.authorizationStatus
+        @unknown default:
+            manager.requestWhenInUseAuthorization()
+        }
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        status = manager.authorizationStatus
+        if status == .authorizedWhenInUse || status == .authorizedAlways {
+            manager.requestLocation()
+        }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        if let loc = locations.last { lastLocation = loc }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        // Bỏ qua lỗi tạm thời (ví dụ chưa có tín hiệu GPS).
     }
 }
