@@ -42,15 +42,9 @@ struct LocationPickerView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .top) {
+            ZStack {
                 Map(coordinateRegion: $region)
-                    .ignoresSafeArea(edges: .bottom)
-
-                Image(systemName: "mappin.and.ellipse")
-                    .font(.system(size: 36))
-                    .foregroundColor(AppTheme.danger)
-                    .shadow(radius: 3)
-                    .offset(y: -18)
+                    .ignoresSafeArea()
 
                 VStack(spacing: 10) {
                     searchBar
@@ -59,6 +53,12 @@ struct LocationPickerView: View {
                     bottomCard
                 }
                 .padding(14)
+
+                // Ghim căn đúng tâm MÀN HÌNH (khung full-screen, trùng tâm Map).
+                pinMarker
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
             }
             .navigationTitle("Chọn vị trí")
             .navigationBarTitleDisplayMode(.inline)
@@ -69,6 +69,16 @@ struct LocationPickerView: View {
             }
             .onAppear(perform: refreshAddress)
         }
+    }
+
+    /// Ghim nhỏ, nằm giữa bản đồ; đầu ghim trùng tâm màn hình.
+    private var pinMarker: some View {
+        Image(systemName: "mappin.circle.fill")
+            .font(.system(size: 26))
+            .foregroundColor(AppTheme.danger)
+            .shadow(color: .black.opacity(0.3), radius: 3, y: 2)
+            .offset(y: -13)
+            .allowsHitTesting(false)
     }
 
     private var searchBar: some View {

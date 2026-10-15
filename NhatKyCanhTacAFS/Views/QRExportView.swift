@@ -345,7 +345,12 @@ struct QRExportView: View {
 
             // Lưu mã QR lên Google Sheet dạng link, gắn theo khu vực + mùa vụ.
             let qrImage = QRService.image(from: result.token, size: 512)
-            GoogleSheetService.syncQR(areaID: areaID, areaName: areaName, crop: crop,
+            let area = app.areas.first(where: { $0.id == areaID })
+            GoogleSheetService.syncQR(areaID: areaID, areaName: areaName,
+                                       areaAddress: area?.address ?? "",
+                                       areaLatitude: area?.latitude,
+                                       areaLongitude: area?.longitude,
+                                       crop: crop,
                                        validDays: days,
                                        issuedAt: result.payload.issuedAt,
                                        expiresAt: result.payload.expiresAt,

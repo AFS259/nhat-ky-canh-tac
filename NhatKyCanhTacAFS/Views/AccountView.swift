@@ -183,6 +183,7 @@ struct AccountView: View {
                 AFSSectionTitle(icon: "info.circle", title: "Thông tin ứng dụng", subtitle: nil)
                 aboutRow("Ứng dụng", "Nhật Ký Canh Tác")
                 aboutRow("Chủ sở hữu", "AUTO FUNSION SYSTEM")
+                aboutRow("Email", "autofunsionsystem.vn@gmail.com")
                 aboutRow("Phiên bản", "1.1 (2026)")
                 aboutRow("Bảo mật QR", "AES-256")
                 aboutRow("Thời hạn QR", "Tùy chỉnh khi xuất")
@@ -191,10 +192,15 @@ struct AccountView: View {
     }
 
     private func aboutRow(_ k: String, _ v: String) -> some View {
-        HStack {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(k).font(.system(size: 13)).foregroundColor(AppTheme.textSecondary)
-            Spacer()
-            Text(v).font(.system(size: 13, weight: .semibold)).foregroundColor(AppTheme.textPrimary)
+            Spacer(minLength: 8)
+            Text(v)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(AppTheme.textPrimary)
+                .multilineTextAlignment(.trailing)
+                .minimumScaleFactor(0.8)
+                .lineLimit(2)
         }
     }
 

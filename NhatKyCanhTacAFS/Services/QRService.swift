@@ -11,15 +11,18 @@ struct QRRow: Codable, Hashable, Identifiable {
     let performer: String
     let performDate: String
     let note: String
+    let imageNames: [String]
 
-    enum CodingKeys: String, CodingKey { case plantDate, work, performer, performDate, note }
+    enum CodingKeys: String, CodingKey { case plantDate, work, performer, performDate, note, imageNames }
 
-    init(plantDate: String, work: String, performer: String, performDate: String, note: String) {
+    init(plantDate: String, work: String, performer: String, performDate: String, note: String,
+         imageNames: [String] = []) {
         self.plantDate = plantDate
         self.work = work
         self.performer = performer
         self.performDate = performDate
         self.note = note
+        self.imageNames = imageNames
     }
 
     init(from decoder: Decoder) throws {
@@ -29,6 +32,7 @@ struct QRRow: Codable, Hashable, Identifiable {
         performer = try c.decodeIfPresent(String.self, forKey: .performer) ?? ""
         performDate = try c.decode(String.self, forKey: .performDate)
         note = try c.decode(String.self, forKey: .note)
+        imageNames = try c.decodeIfPresent([String].self, forKey: .imageNames) ?? []
     }
 }
 
@@ -76,7 +80,8 @@ enum QRService {
                              work: $0.work,
                              performer: $0.performer,
                              performDate: df.string(from: $0.performDate),
-                             note: $0.note) }
+                             note: $0.note,
+                             imageNames: $0.images) }
         )
         let data = try JSONEncoder().encode(payload)
         let sealed = try AES.GCM.seal(data, using: symmetricKey)

@@ -40,7 +40,7 @@ const IMAGE_FOLDER_NAME = 'AFS_NhatKyCanhTac_Images';
 
 // Sheet tổng hợp các mã QR đã xuất (tra cứu theo khu vực + mùa vụ)
 const QR_SHEET = 'Mã QR';
-const QR_HEADERS = ['STT', 'Khu vực', 'Mùa vụ (cây · giống)', 'Người dùng',
+const QR_HEADERS = ['STT', 'Khu vực', 'Địa chỉ định vị', 'Vị trí (tọa độ)', 'Mùa vụ (cây · giống)', 'Người dùng',
                     'Ngày xuất', 'Hết hạn', 'Hiệu lực (ngày)', 'Link QR', 'key'];
 
 // Bảng màu & kiểu chữ cho trang tính (tông xanh nông nghiệp)
@@ -258,7 +258,14 @@ function qrKey_(areaKey, cropType, variety) {
 function ensureQrSheet_(ss) {
   var sh = ss.getSheetByName(QR_SHEET);
   if (!sh) sh = ss.insertSheet(QR_SHEET);
-  if (sh.getLastRow() < 1 || String(sh.getRange(1, 1).getValue()) !== QR_HEADERS[0]) {
+  if (sh.getLastRow() < 1 || String(sh.getRange(1, 1).getValue()) !== QR_HEADERS[0] ||
+      String(sh.getRange(1, 3).getValue()) !== QR_HEADERS[2] ||
+      sh.getLastColumn() < QR_HEADERS.length) {
+    // Migration: sheet cũ (thiếu cột địa chỉ/tọa độ) → chèn 2 cột sau "Khu vực".
+    if (sh.getLastRow() >= 1 && String(sh.getRange(1, 1).getValue()) === QR_HEADERS[0] &&
+        String(sh.getRange(1, 3).getValue()) === 'Mùa vụ (cây · giống)') {
+      sh.insertColumnsAfter(2, 2);
+    }
     sh.getRange(1, 1, 1, QR_HEADERS.length).setValues([QR_HEADERS]);
     sh.setFrozenRows(1);
   }
@@ -266,15 +273,17 @@ function ensureQrSheet_(ss) {
     .setBackground(THEME.tableHeadBg).setFontColor('#FFFFFF')
     .setFontWeight('bold').setHorizontalAlignment('center').setVerticalAlignment('middle');
   sh.setColumnWidth(1, 46);
-  sh.setColumnWidth(2, 170);
-  sh.setColumnWidth(3, 210);
-  sh.setColumnWidth(4, 120);
-  sh.setColumnWidth(5, 140);
-  sh.setColumnWidth(6, 110);
-  sh.setColumnWidth(7, 110);
-  sh.setColumnWidth(8, 170);
-  sh.setColumnWidth(9, 60);
-  try { sh.hideColumns(9); } catch (e) {}
+  sh.setColumnWidth(2, 150);
+  sh.setColumnWidth(3, 200);
+  sh.setColumnWidth(4, 150);
+  sh.setColumnWidth(5, 210);
+  sh.setColumnWidth(6, 120);
+  sh.setColumnWidth(7, 140);
+  sh.setColumnWidth(8, 110);
+  sh.setColumnWidth(9, 110);
+  sh.setColumnWidth(10, 170);
+  sh.setColumnWidth(11, 60);
+  try { sh.hideColumns(11); } catch (e) {}
   return sh;
 }
 
@@ -282,7 +291,7 @@ function ensureQrSheet_(ss) {
 function findQrRow_(sh, key) {
   var last = sh.getLastRow();
   if (last < 2) return -1;
-  var vals = sh.getRange(2, 9, last - 1, 1).getValues();
+  var vals = sh.getRange(2, 11, last - 1, 1).getValues();
   for (var i = 0; i < vals.length; i++) {
     if (String(vals[i][0]) === key) return i + 2;
   }
@@ -306,8 +315,8 @@ function cropQrLinks_(areaKey) {
   if (last < 2) return map;
   var vals = sh.getRange(2, 1, last - 1, QR_HEADERS.length).getValues();
   for (var i = 0; i < vals.length; i++) {
-    var key = String(vals[i][8] || '');
-    var link = String(vals[i][7] || '');
+    var key = String(vals[i][10] || '');
+    var link = String(vals[i][9] || '');
     if (key && link) map[key] = link;
   }
   return map;
@@ -346,9 +355,15 @@ function syncQr_(body) {
   // 2) Ghi/cập nhật dòng trong sheet "Mã QR".
   var sh = ensureQrSheet_(ss);
   var row = findQrRow_(sh, key);
+  var areaAddr = String(body.areaAddress || '');
+  var lat = body.areaLatitude, lon = body.areaLongitude;
+  var areaLoc = (lat != null && lon != null && lat !== '' && lon !== '')
+    ? (Number(lat).toFixed(6) + ', ' + Number(lon).toFixed(6)) : '';
   var values = [
     '', // STT (điền bên dưới)
     areaName,
+    areaAddr,
+    areaLoc,
     muaVu,
     username,
     String(body.issuedAt || ''),
@@ -359,7 +374,7 @@ function syncQr_(body) {
   ];
   if (row > 0) {
     values[0] = sh.getRange(row, 1).getValue();
-    if (!link) values[7] = sh.getRange(row, 8).getValue(); // giữ link cũ nếu tải lên lỗi
+    if (!link) values[9] = sh.getRange(row, 10).getValue(); // giữ link cũ nếu tải lên lỗi
     sh.getRange(row, 1, 1, QR_HEADERS.length).setValues([values]);
   } else {
     sh.appendRow(values);
@@ -371,7 +386,7 @@ function syncQr_(body) {
     .setBorder(true, true, true, true, true, true, THEME.border, SpreadsheetApp.BorderStyle.SOLID);
   if (row % 2 === 1) sh.getRange(row, 1, 1, QR_HEADERS.length).setBackground(THEME.zebraBg);
 
-  var cell = sh.getRange(row, 8);
+  var cell = sh.getRange(row, 10);
   if (link) {
     cell.setRichTextValue(SpreadsheetApp.newRichTextValue()
       .setText('Xem / Tải mã QR').setLinkUrl(link).build()).setHorizontalAlignment('center');
@@ -505,14 +520,14 @@ function writeArea_(sheet, area, username) {
     spacerRows.push(rows.length);
 
     // ----- Bảng nhật ký -----
-    var header = ['STT', 'Ngày trồng', 'Công việc', 'Ngày thực hiện', 'Người thực hiện', 'Ghi chú'];
+    var header = ['STT', 'Ngày trồng', 'Công việc', 'Ngày thực hiện', 'Ghi chú'];
     for (var h = 1; h <= maxImgs; h++) header.push('Ảnh ' + h);
     rows.push(header);
     tableHeaders.push(rows.length);
 
     var bodyFirst = rows.length + 1;
     if (logs.length === 0) {
-      var empty = ['', '', '(chưa có nhật ký)', '', '', ''];
+      var empty = ['', '', '(chưa có nhật ký)', '', ''];
       for (var e = 0; e < maxImgs; e++) empty.push('');
       rows.push(empty);
     }
@@ -523,7 +538,6 @@ function writeArea_(sheet, area, username) {
         String(log.plantDate || ''),
         String(log.work || ''),
         String(log.performDate || ''),
-        String(log.performer || ''),
         String(log.note || '')
       ];
       for (var j = 0; j < maxImgs; j++) row.push('');
@@ -532,7 +546,7 @@ function writeArea_(sheet, area, username) {
         logRows.push({ rowIndex: rows.length, images: imgs });
       }
     });
-    tableBodies.push({ first: bodyFirst, last: rows.length, cols: 6 + maxImgs });
+    tableBodies.push({ first: bodyFirst, last: rows.length, cols: 5 + maxImgs });
   });
 
   rows.push([]);
@@ -547,7 +561,7 @@ function writeArea_(sheet, area, username) {
   try { sheet.getImages().forEach(function (img) { img.remove(); }); } catch (e) {}
 
   var data = padRows_(rows);
-  var lastCol = data.length > 0 ? data[0].length : 6;
+  var lastCol = data.length > 0 ? data[0].length : 5;
   if (data.length > 0) {
     sheet.getRange(1, 1, data.length, lastCol).setValues(data);
   }
@@ -570,7 +584,7 @@ function writeArea_(sheet, area, username) {
   }
   logRows.forEach(function (lr) {
     lr.images.forEach(function (b64, j) {
-      var col = 7 + j;
+      var col = 6 + j;
       try {
         if (!folder) throw new Error('Không tạo được thư mục Drive (thiếu quyền?)');
         var name = 'img_' + lr.rowIndex + '_' + col + '.jpg';
@@ -752,7 +766,7 @@ function removeQrRows_(ss, areaKey) {
   var last = sh.getLastRow();
   if (last < 2) return;
   var prefix = String(areaKey) + '||';
-  var vals = sh.getRange(2, 9, last - 1, 1).getValues();
+  var vals = sh.getRange(2, 11, last - 1, 1).getValues();
   for (var i = vals.length - 1; i >= 0; i--) {
     if (String(vals[i][0]).indexOf(prefix) === 0) sh.deleteRow(i + 2);
   }

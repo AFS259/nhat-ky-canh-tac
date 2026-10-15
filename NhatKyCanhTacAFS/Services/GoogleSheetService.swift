@@ -28,6 +28,9 @@ enum GoogleSheetService {
         let username: String
         let areaKey: String
         let areaName: String
+        let areaAddress: String
+        let areaLatitude: Double?
+        let areaLongitude: Double?
         let cropType: String
         let variety: String
         let issuedAt: String
@@ -80,13 +83,18 @@ enum GoogleSheetService {
 
     /// Ghi mã QR đã xuất lên Google Sheet dạng LINK, gắn theo khu vực + mùa vụ
     /// để tra cứu lại. Ảnh QR được tải lên Drive, link lưu trong sheet "Mã QR".
-    static func syncQR(areaID: UUID, areaName: String, crop: Crop, validDays: Int,
+    static func syncQR(areaID: UUID, areaName: String, areaAddress: String = "",
+                       areaLatitude: Double? = nil, areaLongitude: Double? = nil,
+                       crop: Crop, validDays: Int,
                        issuedAt: Date, expiresAt: Date, token: String,
                        qrImage: UIImage?, username: String, completion: (() -> Void)? = nil) {
         let b64 = qrImage?.pngData()?.base64EncodedString() ?? ""
         post(QRRequest(username: username,
                        areaKey: areaID.uuidString,
                        areaName: areaName,
+                       areaAddress: areaAddress,
+                       areaLatitude: areaLatitude,
+                       areaLongitude: areaLongitude,
                        cropType: crop.cropType,
                        variety: crop.variety,
                        issuedAt: Fmt.dayTime.string(from: issuedAt),

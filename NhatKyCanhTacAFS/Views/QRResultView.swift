@@ -37,10 +37,9 @@ struct QRResultView: View {
                     Button("Đóng") { dismiss() }.foregroundColor(.white)
                 }
             }
-            .sheet(isPresented: $showShare) {
-                if let exportURL {
-                    ShareSheet(items: [exportURL])
-                }
+            .onAppear {
+                // Chuẩn bị file export nhưng không tự mở share sheet
+                prepareExportForCache()
             }
         }
     }
@@ -107,17 +106,22 @@ struct QRResultView: View {
 
     private var exportButton: some View {
         VStack(spacing: 10) {
-            Button {
-                exportData()
-            } label: {
-                Label("XUẤT DỮ LIỆU", systemImage: "square.and.arrow.up")
-            }
-            .buttonStyle(AFSPrimaryButtonStyle())
             if let exportError {
                 Text(exportError)
                     .font(.system(size: 12))
                     .foregroundColor(AppTheme.danger)
                     .multilineTextAlignment(.center)
+            }
+            Button {
+                prepareExport()
+            } label: {
+                Label("XUẤT DỮ LIỆU", systemImage: "square.and.arrow.up")
+            }
+            .buttonStyle(AFSPrimaryButtonStyle())
+        }
+        .sheet(isPresented: $showShare, onDismiss: { showShare = false }) {
+            if let exportURL {
+                ShareSheet(items: [exportURL])
             }
         }
     }
@@ -147,16 +151,32 @@ struct QRResultView: View {
             cell(r.performDate, colPerform)
             cell(r.performer.isEmpty ? "—" : r.performer, colPerson)
             cell(r.note.isEmpty ? "—" : r.note, colNote)
-            HStack(spacing: 6) {
-                Image(systemName: "photo.badge.exclamationmark").font(.system(size: 12))
-                Text("Không kèm").font(.system(size: 10))
-            }
-            .foregroundColor(AppTheme.textSecondary)
-            .frame(width: colImage, alignment: .leading)
-            .padding(.horizontal, 10).padding(.vertical, 12)
+            imageCell(r)
         }
         .background(zebra ? Color(hex: 0xF6FBF1) : .white)
         .overlay(alignment: .bottom) { Divider().overlay(AppTheme.line) }
+    }
+
+    @ViewBuilder
+    private func imageCell(_ r: QRRow) -> some View {
+        let thumbs = r.imageNames.compactMap { ImageStore.load($0) }
+        if thumbs.isEmpty {
+            cell("—", colImage)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(Array(thumbs.enumerated()), id: \.offset) { _, img in
+                        Image(uiImage: img)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 48, height: 48)
+                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    }
+                }
+                .padding(.horizontal, 10).padding(.vertical, 12)
+            }
+            .frame(width: colImage, alignment: .leading)
+        }
     }
 
     private func cell(_ text: String, _ width: CGFloat, semibold: Bool = false) -> some View {
@@ -181,7 +201,7 @@ struct QRResultView: View {
         return value
     }
 
-    private func exportData() {
+    private func prepareExportForCache() {
         var lines: [String] = []
         lines.append("NHẬT KÝ CANH TÁC")
         lines.append("Khu vực,\(csvEscape(payload.areaName))")
@@ -189,21 +209,29 @@ struct QRResultView: View {
         lines.append("Ngày xuất,\(Fmt.dayTime.string(from: payload.issuedAt))")
         lines.append("Hết hạn,\(Fmt.day.string(from: payload.expiresAt))")
         lines.append("")
-        lines.append("Ngày trồng,Công việc,Ngày thực hiện,Người thực hiện,Ghi chú")
+        lines.append("Ngày trồng,Công việc,Ngày thực hiện,Người thực hiện,Ghi chú,Hình ảnh")
         for r in payload.rows {
-            lines.append([r.plantDate, r.work, r.performDate, r.performer, r.note]
+            lines.append([r.plantDate, r.work, r.performDate, r.performer, r.note,
+                          r.imageNames.isEmpty ? "" : "\(r.imageNames.count) ảnh"]
                 .map(csvEscape)
                 .joined(separator: ","))
         }
         let csv = "\u{FEFF}" + lines.joined(separator: "\r\n")
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
         do {
+            if FileManager.default.fileExists(atPath: url.path) {
+                try FileManager.default.removeItem(at: url)
+            }
             try csv.write(to: url, atomically: true, encoding: .utf8)
             exportError = nil
             exportURL = url
-            showShare = true
         } catch {
             exportError = "Không tạo được file dữ liệu: \(error.localizedDescription)"
         }
+    }
+
+    private func prepareExport() {
+        prepareExportForCache()
+        showShare = true
     }
 }
