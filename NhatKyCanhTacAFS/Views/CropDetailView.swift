@@ -55,7 +55,7 @@ struct CropDetailView: View {
             case .edit(let log):
                 LogEntryView(areaID: areaID, cropID: cropID, existing: log)
             case .export:
-                QRExportView(areaName: app.area(id: areaID)?.name ?? "", crop: crop ?? emptyCrop)
+                QRExportView(areaID: areaID, areaName: app.area(id: areaID)?.name ?? "", crop: crop ?? emptyCrop)
             case .gallery(let names):
                 ImageGalleryView(names: names)
             }
@@ -116,7 +116,7 @@ struct CropDetailView: View {
     private func section2(_ crop: Crop) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             AFSSectionTitle(icon: "tablecells", title: "Mục 2 · Bảng nhật ký",
-                            subtitle: "Ngày trồng · Công việc · Ngày thực hiện · Ghi chú · Hình ảnh")
+                            subtitle: "Ngày trồng · Công việc · Ngày thực hiện · Người thực hiện · Ghi chú · Hình ảnh")
 
             if crop.logs.isEmpty {
                 AFSCard {
@@ -128,6 +128,7 @@ struct CropDetailView: View {
                 }
             } else {
                 LogTable(logs: crop.logs.sorted { $0.performDate > $1.performDate },
+                         workAsset: app.workAsset,
                          onEdit: { log in sheet = .edit(log) },
                          onViewImages: { sheet = .gallery($0) })
             }
@@ -178,12 +179,14 @@ struct CropDetailView: View {
 // MARK: - Bảng nhật ký (Mục 2)
 struct LogTable: View {
     let logs: [WorkLog]
+    let workAsset: (String) -> String
     let onEdit: (WorkLog) -> Void
     let onViewImages: ([String]) -> Void
 
     private let colPlant: CGFloat = 96
     private let colWork: CGFloat = 150
     private let colPerform: CGFloat = 110
+    private let colPerson: CGFloat = 130
     private let colNote: CGFloat = 200
     private let colImage: CGFloat = 118
 
@@ -208,6 +211,7 @@ struct LogTable: View {
             headCell("Ngày trồng", width: colPlant)
             headCell("Công việc", width: colWork)
             headCell("Ngày thực hiện", width: colPerform)
+            headCell("Người thực hiện", width: colPerson)
             headCell("Ghi chú", width: colNote)
             headCell("Hình ảnh", width: colImage)
         }
@@ -228,8 +232,8 @@ struct LogTable: View {
             bodyCell(Fmt.day.string(from: log.plantDate), width: colPlant)
 
             HStack(spacing: 6) {
-                Image(systemName: log.work.icon).font(.system(size: 12)).foregroundColor(AppTheme.primary)
-                Text(log.work.rawValue).font(.system(size: 12, weight: .semibold)).foregroundColor(AppTheme.textPrimary)
+                Image(workAsset(log.work)).resizable().scaledToFit().frame(width: 18, height: 18)
+                Text(log.work).font(.system(size: 12, weight: .semibold)).foregroundColor(AppTheme.textPrimary)
                     .lineLimit(2)
             }
             .frame(width: colWork, alignment: .leading)
@@ -237,6 +241,8 @@ struct LogTable: View {
             .padding(.vertical, 12)
 
             bodyCell(Fmt.day.string(from: log.performDate), width: colPerform)
+
+            bodyCell(log.performer.isEmpty ? "—" : log.performer, width: colPerson)
 
             Text(log.note.isEmpty ? "—" : log.note)
                 .font(.system(size: 12))

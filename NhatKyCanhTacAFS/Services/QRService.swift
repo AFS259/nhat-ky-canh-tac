@@ -5,11 +5,31 @@ import CoreImage.CIFilterBuiltins
 import UIKit
 
 struct QRRow: Codable, Hashable, Identifiable {
-    var id: String { plantDate + work + performDate + note }
+    var id: String { plantDate + work + performer + performDate + note }
     let plantDate: String
     let work: String
+    let performer: String
     let performDate: String
     let note: String
+
+    enum CodingKeys: String, CodingKey { case plantDate, work, performer, performDate, note }
+
+    init(plantDate: String, work: String, performer: String, performDate: String, note: String) {
+        self.plantDate = plantDate
+        self.work = work
+        self.performer = performer
+        self.performDate = performDate
+        self.note = note
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        plantDate = try c.decode(String.self, forKey: .plantDate)
+        work = try c.decode(String.self, forKey: .work)
+        performer = try c.decodeIfPresent(String.self, forKey: .performer) ?? ""
+        performDate = try c.decode(String.self, forKey: .performDate)
+        note = try c.decode(String.self, forKey: .note)
+    }
 }
 
 struct QRPayload: Codable {
@@ -53,7 +73,8 @@ enum QRService {
             rows: crop.logs
                 .sorted { $0.performDate < $1.performDate }
                 .map { QRRow(plantDate: df.string(from: $0.plantDate),
-                             work: $0.work.rawValue,
+                             work: $0.work,
+                             performer: $0.performer,
                              performDate: df.string(from: $0.performDate),
                              note: $0.note) }
         )

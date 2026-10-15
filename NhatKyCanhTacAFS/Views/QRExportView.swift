@@ -3,6 +3,8 @@ import UIKit
 
 struct QRExportView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var app: AppState
+    let areaID: UUID
     let areaName: String
     let crop: Crop
 
@@ -274,6 +276,13 @@ struct QRExportView: View {
                     value: Fmt.day.string(from: payload.expiresAt), highlight: true)
                 Divider().overlay(AppTheme.line)
                 HStack(spacing: 8) {
+                    Image(systemName: "link").foregroundColor(AppTheme.primary)
+                    Text("Mã QR đã được lưu lên Google Sheet (sheet \"Mã QR\") theo khu vực & mùa vụ để tra cứu lại.")
+                        .font(.system(size: 12))
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+                Divider().overlay(AppTheme.line)
+                HStack(spacing: 8) {
                     Image(systemName: "info.circle.fill").foregroundColor(AppTheme.gold)
                     Text("Mã QR có hiệu lực \(validDays) ngày kể từ khi xuất. Quá hạn sẽ không quét được.")
                         .font(.system(size: 12))
@@ -333,6 +342,17 @@ struct QRExportView: View {
             payload = result.payload
             errorText = nil
             withAnimation { locked = true }
+
+            // Lưu mã QR lên Google Sheet dạng link, gắn theo khu vực + mùa vụ.
+            let qrImage = QRService.image(from: result.token, size: 512)
+            GoogleSheetService.syncQR(areaID: areaID, areaName: areaName, crop: crop,
+                                       validDays: days,
+                                       issuedAt: result.payload.issuedAt,
+                                       expiresAt: result.payload.expiresAt,
+                                       token: result.token, qrImage: qrImage,
+                                       username: app.currentUser?.username ?? "") {
+                app.resyncArea(id: areaID)
+            }
         } catch {
             errorText = "Không tạo được mã QR: \(error.localizedDescription)"
         }
@@ -350,5 +370,6 @@ struct ShareSheet: UIViewControllerRepresentable {
 }
 
 #Preview {
-    QRExportView(areaName: "Vườn ổi sau nhà", crop: Crop.empty)
+    QRExportView(areaID: UUID(), areaName: "Vườn ổi sau nhà", crop: Crop.empty)
+        .environmentObject(AppState())
 }

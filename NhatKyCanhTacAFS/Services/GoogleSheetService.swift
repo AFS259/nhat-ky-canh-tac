@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 /// Đồng bộ dữ liệu (khu vực → vụ → nhật ký, kèm ảnh minh chứng) lên Google Sheet
 /// qua Apps Script Web App. Mỗi khu vực (Area) được ghi thành một sheet riêng.
@@ -20,6 +21,20 @@ enum GoogleSheetService {
         let username: String
         let key: String
         let areaName: String
+    }
+
+    private struct QRRequest: Encodable {
+        let action = "syncQr"
+        let username: String
+        let areaKey: String
+        let areaName: String
+        let cropType: String
+        let variety: String
+        let issuedAt: String
+        let expiresAt: String
+        let validDays: Int
+        let token: String
+        let qrImage: String
     }
 
     private struct AreaPayload: Encodable {
@@ -45,6 +60,7 @@ enum GoogleSheetService {
     private struct LogPayload: Encodable {
         let plantDate: String
         let work: String
+        let performer: String
         let performDate: String
         let note: String
         let images: [String]
@@ -60,6 +76,24 @@ enum GoogleSheetService {
     /// Xoá sheet của khu vực khi khu vực bị xoá trong app.
     static func deleteArea(_ area: Area, username: String) {
         post(DeleteRequest(username: username, key: area.id.uuidString, areaName: area.name))
+    }
+
+    /// Ghi mã QR đã xuất lên Google Sheet dạng LINK, gắn theo khu vực + mùa vụ
+    /// để tra cứu lại. Ảnh QR được tải lên Drive, link lưu trong sheet "Mã QR".
+    static func syncQR(areaID: UUID, areaName: String, crop: Crop, validDays: Int,
+                       issuedAt: Date, expiresAt: Date, token: String,
+                       qrImage: UIImage?, username: String, completion: (() -> Void)? = nil) {
+        let b64 = qrImage?.pngData()?.base64EncodedString() ?? ""
+        post(QRRequest(username: username,
+                       areaKey: areaID.uuidString,
+                       areaName: areaName,
+                       cropType: crop.cropType,
+                       variety: crop.variety,
+                       issuedAt: Fmt.dayTime.string(from: issuedAt),
+                       expiresAt: Fmt.day.string(from: expiresAt),
+                       validDays: validDays,
+                       token: token,
+                       qrImage: b64), completion: completion)
     }
 
     // MARK: - Mapping
@@ -85,7 +119,8 @@ enum GoogleSheetService {
                         .map { log in
                             LogPayload(
                                 plantDate: Fmt.day.string(from: log.plantDate),
-                                work: log.work.rawValue,
+                                work: log.work,
+                                performer: log.performer,
                                 performDate: Fmt.day.string(from: log.performDate),
                                 note: log.note,
                                 images: log.images.compactMap {
@@ -100,13 +135,19 @@ enum GoogleSheetService {
 
     // MARK: - Networking
 
-    private static func post<T: Encodable>(_ body: T) {
-        guard let data = try? JSONEncoder().encode(body) else { return }
+    private static func post<T: Encodable>(_ body: T, completion: (() -> Void)? = nil) {
+        guard let data = try? JSONEncoder().encode(body) else {
+            if let completion { DispatchQueue.main.async(execute: completion) }
+            return
+        }
         var request = URLRequest(url: webAppURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 30
         request.httpBody = data
-        URLSession.shared.dataTask(with: request) { _, _, _ in }.resume()
+        URLSession.shared.dataTask(with: request) { _, _, _ in
+            guard let completion else { return }
+            DispatchQueue.main.async(execute: completion)
+        }.resume()
     }
 }

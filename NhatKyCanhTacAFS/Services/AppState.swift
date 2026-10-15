@@ -7,6 +7,30 @@ struct AppData: Codable {
     var users: [AppUser] = []
     var areasByUser: [String: [Area]] = [:]
     var currentUsername: String?
+    var customWorksByUser: [String: [WorkItem]] = [:]
+    var performersByUser: [String: [String]] = [:]
+
+    init(users: [AppUser] = [], areasByUser: [String: [Area]] = [:], currentUsername: String? = nil,
+         customWorksByUser: [String: [WorkItem]] = [:], performersByUser: [String: [String]] = [:]) {
+        self.users = users
+        self.areasByUser = areasByUser
+        self.currentUsername = currentUsername
+        self.customWorksByUser = customWorksByUser
+        self.performersByUser = performersByUser
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case users, areasByUser, currentUsername, customWorksByUser, performersByUser
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        users = try c.decodeIfPresent([AppUser].self, forKey: .users) ?? []
+        areasByUser = try c.decodeIfPresent([String: [Area]].self, forKey: .areasByUser) ?? [:]
+        currentUsername = try c.decodeIfPresent(String.self, forKey: .currentUsername)
+        customWorksByUser = try c.decodeIfPresent([String: [WorkItem]].self, forKey: .customWorksByUser) ?? [:]
+        performersByUser = try c.decodeIfPresent([String: [String]].self, forKey: .performersByUser) ?? [:]
+    }
 }
 
 final class AppState: ObservableObject {
@@ -14,8 +38,12 @@ final class AppState: ObservableObject {
     @Published private(set) var users: [AppUser] = []
     @Published var currentUser: AppUser?
     @Published private var areasByUser: [String: [Area]] = [:]
+    @Published private var customWorksByUser: [String: [WorkItem]] = [:]
+    @Published private var performersByUser: [String: [String]] = [:]
     @Published var lastError: String?
     @Published private(set) var avatarImage: UIImage?
+
+    private var currentKey: String? { currentUser?.username }
 
     private var dataURL: URL {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -106,6 +134,8 @@ final class AppState: ObservableObject {
             try? FileManager.default.removeItem(at: url)
         }
         areasByUser[user.username] = nil
+        customWorksByUser[user.username] = nil
+        performersByUser[user.username] = nil
         users.remove(at: i)
         lastError = nil
         save()
@@ -116,6 +146,91 @@ final class AppState: ObservableObject {
     private func syncToSheet(_ area: Area) {
         guard let username = currentUser?.username else { return }
         GoogleSheetService.syncArea(area, username: username)
+    }
+
+    /// Re-sync một khu vực lên Google Sheet (dùng sau khi cập nhật phụ (vd. QR link)).
+    func resyncArea(id: UUID) {
+        guard let key = currentUser?.username else { return }
+        let list = areasByUser[key] ?? []
+        guard let area = list.first(where: { $0.id == id }) else { return }
+        syncToSheet(area)
+    }
+
+    // MARK: - Danh sách công việc (thêm/xoá, lưu theo tài khoản trên máy)
+    /// Công việc mặc định + công việc tự thêm của tài khoản hiện tại.
+    var workItems: [WorkItem] {
+        guard let key = currentKey else { return WorkCatalog.builtins }
+        return WorkCatalog.builtins + (customWorksByUser[key] ?? [])
+    }
+
+    /// Trả về tên asset icon cho một công việc (theo tên).
+    func workAsset(for name: String) -> String {
+        let key = WorkCatalog.normalize(name)
+        if let custom = (currentKey.flatMap { customWorksByUser[$0] } ?? [])
+            .first(where: { WorkCatalog.normalize($0.name) == key }) {
+            return custom.asset
+        }
+        return WorkCatalog.asset(forName: name) ?? WorkCatalog.defaultAsset
+    }
+
+    @discardableResult
+    func addWork(name: String, asset: String) -> Bool {
+        guard let key = currentKey else { return false }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { lastError = "Tên công việc không được để trống."; return false }
+        guard !workItems.contains(where: { WorkCatalog.normalize($0.name) == WorkCatalog.normalize(trimmed) }) else {
+            lastError = "Công việc đã tồn tại trong danh sách."; return false
+        }
+        var list = customWorksByUser[key] ?? []
+        list.append(WorkItem(name: trimmed, asset: asset))
+        customWorksByUser[key] = list
+        lastError = nil
+        save()
+        return true
+    }
+
+    func deleteWork(id: String) {
+        guard let key = currentKey else { return }
+        var list = customWorksByUser[key] ?? []
+        list.removeAll { $0.id == id }
+        customWorksByUser[key] = list
+        save()
+    }
+
+    /// Các công việc tự thêm (có thể xoá).
+    var customWorks: [WorkItem] {
+        guard let key = currentKey else { return [] }
+        return customWorksByUser[key] ?? []
+    }
+
+    // MARK: - Danh sách người thực hiện (thêm/xoá, lưu theo tài khoản trên máy)
+    var performers: [String] {
+        guard let key = currentKey else { return [] }
+        return performersByUser[key] ?? []
+    }
+
+    @discardableResult
+    func addPerformer(_ name: String) -> Bool {
+        guard let key = currentKey else { return false }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { lastError = "Tên người thực hiện không được để trống."; return false }
+        var list = performersByUser[key] ?? []
+        guard !list.contains(where: { $0.caseInsensitiveCompare(trimmed) == .orderedSame }) else {
+            lastError = "Người thực hiện đã tồn tại."; return false
+        }
+        list.append(trimmed)
+        performersByUser[key] = list
+        lastError = nil
+        save()
+        return true
+    }
+
+    func removePerformer(_ name: String) {
+        guard let key = currentKey else { return }
+        var list = performersByUser[key] ?? []
+        list.removeAll { $0.caseInsensitiveCompare(name) == .orderedSame }
+        performersByUser[key] = list
+        save()
     }
 
     // MARK: - Auth
@@ -212,6 +327,10 @@ final class AppState: ObservableObject {
         if oldName != uname {
             areasByUser[uname] = areasByUser[oldName] ?? []
             areasByUser[oldName] = nil
+            customWorksByUser[uname] = customWorksByUser[oldName] ?? []
+            customWorksByUser[oldName] = nil
+            performersByUser[uname] = performersByUser[oldName] ?? []
+            performersByUser[oldName] = nil
         }
         if let i = users.firstIndex(where: { $0.username == oldName }) {
             users[i] = user
@@ -265,6 +384,8 @@ final class AppState: ObservableObject {
            let decoded = try? JSONDecoder().decode(AppData.self, from: data) {
             users = decoded.users
             areasByUser = decoded.areasByUser
+            customWorksByUser = decoded.customWorksByUser
+            performersByUser = decoded.performersByUser
             if let name = decoded.currentUsername {
                 currentUser = users.first { $0.username == name }
             }
@@ -295,7 +416,8 @@ final class AppState: ObservableObject {
     }
 
     private func save() {
-        let payload = AppData(users: users, areasByUser: areasByUser, currentUsername: currentUser?.username)
+        let payload = AppData(users: users, areasByUser: areasByUser, currentUsername: currentUser?.username,
+                              customWorksByUser: customWorksByUser, performersByUser: performersByUser)
         if let data = try? JSONEncoder().encode(payload) {
             try? data.write(to: dataURL, options: .atomic)
         }

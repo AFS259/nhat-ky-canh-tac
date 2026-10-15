@@ -1,0 +1,23 @@
+{
+  "images": [
+    {
+      "filename": "WorkNote-1x.png",
+      "idiom": "universal",
+      "scale": "1x"
+    },
+    {
+      "filename": "WorkNote-2x.png",
+      "idiom": "universal",
+      "scale": "2x"
+    },
+    {
+      "filename": "WorkNote-3x.png",
+      "idiom": "universal",
+      "scale": "3x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

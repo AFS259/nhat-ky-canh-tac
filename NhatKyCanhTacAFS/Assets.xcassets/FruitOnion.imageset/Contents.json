@@ -1,0 +1,23 @@
+{
+  "images": [
+    {
+      "filename": "FruitOnion-1x.png",
+      "idiom": "universal",
+      "scale": "1x"
+    },
+    {
+      "filename": "FruitOnion-2x.png",
+      "idiom": "universal",
+      "scale": "2x"
+    },
+    {
+      "filename": "FruitOnion-3x.png",
+      "idiom": "universal",
+      "scale": "3x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

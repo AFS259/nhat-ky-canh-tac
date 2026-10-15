@@ -38,6 +38,11 @@ const INDEX_SHEET = '_AFS_INDEX';
 // Thư mục Google Drive gốc chứa ảnh minh chứng (mỗi khu vực = 1 thư mục con)
 const IMAGE_FOLDER_NAME = 'AFS_NhatKyCanhTac_Images';
 
+// Sheet tổng hợp các mã QR đã xuất (tra cứu theo khu vực + mùa vụ)
+const QR_SHEET = 'Mã QR';
+const QR_HEADERS = ['STT', 'Khu vực', 'Mùa vụ (cây · giống)', 'Người dùng',
+                    'Ngày xuất', 'Hết hạn', 'Hiệu lực (ngày)', 'Link QR', 'key'];
+
 // Bảng màu & kiểu chữ cho trang tính (tông xanh nông nghiệp)
 const THEME = {
   titleBg:    '#1B5E20', // xanh lá đậm  – nền tiêu đề
@@ -110,6 +115,7 @@ function doPost(e) {
 
     if (action === 'syncArea')   return json_(syncArea_(body));
     if (action === 'deleteArea') return json_(deleteArea_(body));
+    if (action === 'syncQr')     return json_(syncQr_(body));
     if (action === 'syncAll')    return json_(syncAll_(body));
 
     return json_({ ok: false, error: 'Unknown action: ' + action });
@@ -222,17 +228,158 @@ function clearFolder_(folder) {
 }
 
 /**
- * Tải 1 ảnh base64 lên Drive, mở quyền xem cho mọi người có link.
+ * Tải 1 file base64 lên Drive, mở quyền xem cho mọi người có link.
  * Trả URL xem/tải (file view page) hoặc ném lỗi.
  */
-function uploadImageLink_(folder, b64, name) {
-  var blob = Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg', name);
+function uploadFileLink_(folder, b64, name, mime) {
+  var blob = Utilities.newBlob(Utilities.base64Decode(b64), mime || 'application/octet-stream', name);
   var file = folder.createFile(blob);
   try {
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   } catch (e) {}
-  var id = file.getId();
-  return 'https://drive.google.com/file/d/' + id + '/view';
+  return 'https://drive.google.com/file/d/' + file.getId() + '/view';
+}
+
+/** Ảnh minh chứng nhật ký (JPEG). */
+function uploadImageLink_(folder, b64, name) {
+  return uploadFileLink_(folder, b64, name, 'image/jpeg');
+}
+
+// ---------------------------------------------------------------------------
+//  Mã QR: lưu ảnh QR lên Drive + sheet tra cứu "Mã QR" theo khu vực + mùa vụ
+// ---------------------------------------------------------------------------
+
+/** Khoá định danh một mùa vụ: areaKey || cropType || variety. */
+function qrKey_(areaKey, cropType, variety) {
+  return String(areaKey) + '||' + String(cropType) + '||' + String(variety);
+}
+
+/** Lấy (hoặc tạo) sheet tổng hợp mã QR. */
+function ensureQrSheet_(ss) {
+  var sh = ss.getSheetByName(QR_SHEET);
+  if (!sh) sh = ss.insertSheet(QR_SHEET);
+  if (sh.getLastRow() < 1 || String(sh.getRange(1, 1).getValue()) !== QR_HEADERS[0]) {
+    sh.getRange(1, 1, 1, QR_HEADERS.length).setValues([QR_HEADERS]);
+    sh.setFrozenRows(1);
+  }
+  sh.getRange(1, 1, 1, QR_HEADERS.length)
+    .setBackground(THEME.tableHeadBg).setFontColor('#FFFFFF')
+    .setFontWeight('bold').setHorizontalAlignment('center').setVerticalAlignment('middle');
+  sh.setColumnWidth(1, 46);
+  sh.setColumnWidth(2, 170);
+  sh.setColumnWidth(3, 210);
+  sh.setColumnWidth(4, 120);
+  sh.setColumnWidth(5, 140);
+  sh.setColumnWidth(6, 110);
+  sh.setColumnWidth(7, 110);
+  sh.setColumnWidth(8, 170);
+  sh.setColumnWidth(9, 60);
+  try { sh.hideColumns(9); } catch (e) {}
+  return sh;
+}
+
+/** Tìm dòng (1-based) trong sheet QR theo key. Trả -1 nếu không có. */
+function findQrRow_(sh, key) {
+  var last = sh.getLastRow();
+  if (last < 2) return -1;
+  var vals = sh.getRange(2, 9, last - 1, 1).getValues();
+  for (var i = 0; i < vals.length; i++) {
+    if (String(vals[i][0]) === key) return i + 2;
+  }
+  return -1;
+}
+
+/** Thư mục con "QR" trong thư mục ảnh của khu vực. */
+function getAreaQrFolder_(areaKey) {
+  var area = getAreaImageFolder_(areaKey);
+  var sub = area.getFoldersByName('QR');
+  return sub.hasNext() ? sub.next() : area.createFolder('QR');
+}
+
+/** Ghi JSON array gồm [rowIndex, link] cho mỗi mùa vụ có mã QR (dùng khi vẽ sheet khu vực). */
+function cropQrLinks_(areaKey) {
+  var ss = getSpreadsheet_();
+  var sh = ss.getSheetByName(QR_SHEET);
+  var map = {};
+  if (!sh) return map;
+  var last = sh.getLastRow();
+  if (last < 2) return map;
+  var vals = sh.getRange(2, 1, last - 1, QR_HEADERS.length).getValues();
+  for (var i = 0; i < vals.length; i++) {
+    var key = String(vals[i][8] || '');
+    var link = String(vals[i][7] || '');
+    if (key && link) map[key] = link;
+  }
+  return map;
+}
+
+/**
+ * Nhận ảnh QR (base64 PNG) từ app, tải lên Drive rồi ghi/cập nhật 1 dòng
+ * trong sheet "Mã QR" theo khu vực + mùa vụ. Trả về link để hiển thị.
+ */
+function syncQr_(body) {
+  var ss = getSpreadsheet_();
+  var areaKey = String(body.areaKey || '');
+  var areaName = String(body.areaName || '');
+  var cropType = String(body.cropType || '');
+  var variety = String(body.variety || '');
+  var username = String(body.username || '');
+  if (!areaKey) return { ok: false, error: 'Missing areaKey' };
+
+  var key = qrKey_(areaKey, cropType, variety);
+  var muaVu = String(cropType) + (variety ? (' · ' + variety) : '');
+
+  // 1) Tải ảnh QR lên Drive.
+  var link = '';
+  var error = '';
+  var b64 = cleanImage_(body.qrImage);
+  if (b64) {
+    try {
+      var stamp = Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'yyyyMMdd_HHmmss');
+      var name = 'QR_' + sanitizeSheetName_(cropType) + '_' + stamp + '.png';
+      link = uploadFileLink_(getAreaQrFolder_(areaKey), b64, name, 'image/png');
+    } catch (e) {
+      error = String(e && e.message ? e.message : e);
+    }
+  }
+
+  // 2) Ghi/cập nhật dòng trong sheet "Mã QR".
+  var sh = ensureQrSheet_(ss);
+  var row = findQrRow_(sh, key);
+  var values = [
+    '', // STT (điền bên dưới)
+    areaName,
+    muaVu,
+    username,
+    String(body.issuedAt || ''),
+    String(body.expiresAt || ''),
+    (body.validDays != null ? body.validDays : ''),
+    link,
+    key
+  ];
+  if (row > 0) {
+    values[0] = sh.getRange(row, 1).getValue();
+    if (!link) values[7] = sh.getRange(row, 8).getValue(); // giữ link cũ nếu tải lên lỗi
+    sh.getRange(row, 1, 1, QR_HEADERS.length).setValues([values]);
+  } else {
+    sh.appendRow(values);
+    row = sh.getLastRow();
+    sh.getRange(row, 1).setValue(row - 1); // STT
+  }
+  sh.getRange(row, 1, 1, QR_HEADERS.length)
+    .setVerticalAlignment('middle')
+    .setBorder(true, true, true, true, true, true, THEME.border, SpreadsheetApp.BorderStyle.SOLID);
+  if (row % 2 === 1) sh.getRange(row, 1, 1, QR_HEADERS.length).setBackground(THEME.zebraBg);
+
+  var cell = sh.getRange(row, 8);
+  if (link) {
+    cell.setRichTextValue(SpreadsheetApp.newRichTextValue()
+      .setText('Xem / Tải mã QR').setLinkUrl(link).build()).setHorizontalAlignment('center');
+  } else if (!error) {
+    cell.setValue('(chưa tạo được)');
+  }
+
+  return { ok: true, link: link, sheet: QR_SHEET, row: row, error: error };
 }
 
 
@@ -295,6 +442,8 @@ function writeArea_(sheet, area, username) {
   var spacerRows = [];   // dòng phân cách
   var tableHeaders = []; // dòng tiêu đề bảng nhật ký
   var tableBodies = [];  // { first, last, cols } vùng dữ liệu bảng
+  var qrMap = cropQrLinks_(String(area.key || '')); // key mùa vụ → link mã QR
+  var qrLinkCells = [];  // { row, link } ô hiển thị link mã QR của vụ
 
   // ----- Tiêu đề chính -----
   rows.push(['🌱  NHẬT KÝ CANH TÁC AFS']);
@@ -337,6 +486,14 @@ function writeArea_(sheet, area, username) {
     cinfo('SỐ CÂY TRỒNG', crop.plantCount != null ? crop.plantCount : '');
     cinfo('NGÀY TRỒNG', crop.plantDate || '');
 
+    // Link mã QR đã xuất cho mùa vụ này (nếu có).
+    var qrLink = qrMap[qrKey_(area.key, crop.cropType, crop.variety)] || '';
+    if (qrLink) {
+      rows.push(['MÃ QR', 'Xem / Tải mã QR']);
+      infoRows.push(rows.length);
+      qrLinkCells.push({ row: rows.length, link: qrLink });
+    }
+
     var logs = crop.logs || [];
     var maxImgs = 0;
     logs.forEach(function (log) {
@@ -348,14 +505,14 @@ function writeArea_(sheet, area, username) {
     spacerRows.push(rows.length);
 
     // ----- Bảng nhật ký -----
-    var header = ['STT', 'Ngày trồng', 'Công việc', 'Ngày thực hiện', 'Ghi chú'];
+    var header = ['STT', 'Ngày trồng', 'Công việc', 'Ngày thực hiện', 'Người thực hiện', 'Ghi chú'];
     for (var h = 1; h <= maxImgs; h++) header.push('Ảnh ' + h);
     rows.push(header);
     tableHeaders.push(rows.length);
 
     var bodyFirst = rows.length + 1;
     if (logs.length === 0) {
-      var empty = ['', '', '(chưa có nhật ký)', '', ''];
+      var empty = ['', '', '(chưa có nhật ký)', '', '', ''];
       for (var e = 0; e < maxImgs; e++) empty.push('');
       rows.push(empty);
     }
@@ -366,6 +523,7 @@ function writeArea_(sheet, area, username) {
         String(log.plantDate || ''),
         String(log.work || ''),
         String(log.performDate || ''),
+        String(log.performer || ''),
         String(log.note || '')
       ];
       for (var j = 0; j < maxImgs; j++) row.push('');
@@ -374,7 +532,7 @@ function writeArea_(sheet, area, username) {
         logRows.push({ rowIndex: rows.length, images: imgs });
       }
     });
-    tableBodies.push({ first: bodyFirst, last: rows.length, cols: 5 + maxImgs });
+    tableBodies.push({ first: bodyFirst, last: rows.length, cols: 6 + maxImgs });
   });
 
   rows.push([]);
@@ -389,7 +547,7 @@ function writeArea_(sheet, area, username) {
   try { sheet.getImages().forEach(function (img) { img.remove(); }); } catch (e) {}
 
   var data = padRows_(rows);
-  var lastCol = data.length > 0 ? data[0].length : 5;
+  var lastCol = data.length > 0 ? data[0].length : 6;
   if (data.length > 0) {
     sheet.getRange(1, 1, data.length, lastCol).setValues(data);
   }
@@ -412,7 +570,7 @@ function writeArea_(sheet, area, username) {
   }
   logRows.forEach(function (lr) {
     lr.images.forEach(function (b64, j) {
-      var col = 6 + j;
+      var col = 7 + j;
       try {
         if (!folder) throw new Error('Không tạo được thư mục Drive (thiếu quyền?)');
         var name = 'img_' + lr.rowIndex + '_' + col + '.jpg';
@@ -441,6 +599,15 @@ function writeArea_(sheet, area, username) {
     tableBodies: tableBodies,
     footerRow: footerRow
   }, lastCol, imgCols, imgCells);
+
+  // Ghi link mã QR của từng vụ dưới dạng hyperlink trong ô "MÃ QR".
+  qrLinkCells.forEach(function (q) {
+    try {
+      sheet.getRange(q.row, 2).setRichTextValue(
+        SpreadsheetApp.newRichTextValue()
+          .setText('Xem / Tải mã QR').setLinkUrl(q.link).build());
+    } catch (e) {}
+  });
 
   return { linked: linked, imageErrors: imageErrors };
 }
@@ -571,10 +738,24 @@ function deleteArea_(body) {
       var sh = ss.getSheetByName(name);
       if (sh) ss.deleteSheet(sh);
       idx.deleteRow(row);
+      removeQrRows_(ss, key);
       return { ok: true, deleted: name };
     }
   }
   return { ok: true, deleted: null };
+}
+
+/** Xoá các dòng mã QR thuộc một khu vực (theo areaKey trong cột "key"). */
+function removeQrRows_(ss, areaKey) {
+  var sh = ss.getSheetByName(QR_SHEET);
+  if (!sh) return;
+  var last = sh.getLastRow();
+  if (last < 2) return;
+  var prefix = String(areaKey) + '||';
+  var vals = sh.getRange(2, 9, last - 1, 1).getValues();
+  for (var i = vals.length - 1; i >= 0; i--) {
+    if (String(vals[i][0]).indexOf(prefix) === 0) sh.deleteRow(i + 2);
+  }
 }
 
 // ---------------------------------------------------------------------------

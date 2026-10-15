@@ -20,17 +20,85 @@ OPENMOJI = "https://raw.githubusercontent.com/hfg-gmuend/openmoji/master/color/6
 
 # crop-type keyword -> (asset name, openmoji hex code)
 FRUITS = [
-    ("FruitGuava", "1F350"),        # Ổi (pear)
+    # --- Trái cây ---
+    ("FruitGuava", "1F350"),        # Ổi, Lê (nhóm quả xanh)
     ("FruitMango", "1F96D"),        # Xoài
-    ("FruitPomelo", "1F34A"),       # Bưởi (tangerine)
+    ("FruitPomelo", "1F34A"),       # Bưởi, Quýt (quả có múi)
     ("FruitOrange", "1F7E0"),       # Cam
-    ("FruitLemon", "1F34B"),        # Chanh
+    ("FruitLemon", "1F34B"),        # Chanh, Chanh dây
     ("FruitDragonFruit", "1F409"),  # Thanh Long
     ("FruitWatermelon", "1F349"),   # Dưa Hấu
+    ("FruitMelon", "1F348"),        # Dưa Lưới, Dưa Gang
+    ("FruitApple", "1F34E"),        # Táo
+    ("FruitGreenApple", "1F34F"),   # Táo Xanh
+    ("FruitBanana", "1F34C"),       # Chuối
+    ("FruitPineapple", "1F34D"),    # Dứa, Thơm, Mãng Cầu
+    ("FruitPeach", "1F351"),        # Đào, Mận, Mơ
+    ("FruitCherry", "1F352"),       # Anh Đào, Sơ Ri
+    ("FruitStrawberry", "1F353"),   # Dâu Tây, Chôm Chôm
+    ("FruitKiwi", "1F95D"),         # Kiwi
+    ("FruitCoconut", "1F965"),      # Dừa
+    ("FruitAvocado", "1F951"),      # Bơ
+    ("FruitGrape", "1F347"),        # Nho, Nhãn, Vải
+    ("FruitBlueberry", "1FAD0"),    # Việt Quất
+    ("FruitOlive", "1FAD2"),        # Ô Liu
+    # --- Rau củ ---
     ("FruitTomato", "1F345"),       # Cà Chua
     ("FruitChili", "1F336"),        # Ớt
-    ("FruitGrape", "1F347"),        # Nho
+    ("FruitBellPepper", "1FAD1"),   # Ớt Ngọt, Ớt Chuông
+    ("FruitCucumber", "1F952"),     # Dưa Leo, Khổ Qua
+    ("FruitEggplant", "1F346"),     # Cà Tím
+    ("FruitPumpkin", "1F383"),      # Bí Đỏ, Bí Ngô
+    ("FruitCorn", "1F33D"),         # Ngô, Bắp
+    ("FruitPotato", "1F954"),       # Khoai Tây
+    ("FruitSweetPotato", "1F360"),  # Khoai Lang
+    ("FruitCarrot", "1F955"),       # Cà Rốt
+    ("FruitGarlic", "1F9C4"),       # Tỏi
+    ("FruitOnion", "1F9C5"),        # Hành
+    ("FruitBroccoli", "1F966"),     # Súp Lơ, Cải
+    ("FruitLeafyGreen", "1F96C"),   # Rau ăn lá
+    ("FruitMushroom", "1F344"),     # Nấm
+    ("FruitChestnut", "1F330"),     # Hạt Dẻ
+    ("FruitPeanut", "1F95C"),       # Lạc, Đậu Phộng
+    ("FruitRice", "1F33E"),         # Lúa
+    ("FruitHerb", "1F33F"),         # Rau Thơm
+    ("FruitCoffee", "2615"),        # Cà Phê
     ("FruitSeedling", "1F331"),     # fallback
+]
+
+
+# Bộ icon công việc canh tác (asset name -> openmoji hex code)
+WORK_ICONS = [
+    ("WorkWater", "1F4A7"),         # Tưới nước
+    ("WorkFertilizer", "1F343"),    # Bón phân hữu cơ
+    ("WorkLeafFertilizer", "1F33F"),# Phân bón lá
+    ("WorkRootFertilizer", "1F955"),# Phân bón gốc
+    ("WorkSpray", "1F9F4"),         # Phun thuốc
+    ("WorkPesticide", "1F9EA"),     # Thuốc BVTV
+    ("WorkBug", "1F41B"),           # Sâu bệnh
+    ("WorkDisease", "1F9A0"),       # Nấm bệnh
+    ("WorkBind", "1F9F6"),          # Quấn dây
+    ("WorkPrune", "2702"),          # Tỉa chồi / cắt tỉa
+    ("WorkPollinate", "1F41D"),     # Thụ phấn
+    ("WorkHarvest", "1F9FA"),       # Thu hoạch
+    ("WorkSeed", "1F331"),          # Gieo hạt
+    ("WorkPlant", "1F333"),         # Trồng cây
+    ("WorkTractor", "1F69C"),       # Cày đất
+    ("WorkDig", "26CF"),            # Xới đất
+    ("WorkAxe", "1FA93"),           # Đốn / cắt cành
+    ("WorkBroom", "1F9F9"),         # Làm cỏ
+    ("WorkSearch", "1F50D"),        # Kiểm tra
+    ("WorkNote", "1F4DD"),          # Ghi chép
+    ("WorkSell", "1F4B0"),          # Bán nông sản
+    ("WorkTruck", "1F69B"),         # Vận chuyển
+    ("WorkBox", "1F4E6"),           # Bao trái / Đóng gói
+    ("WorkHammer", "1F528"),        # Sửa dụng cụ
+    ("WorkGear", "2699"),           # Dụng cụ
+    ("WorkSun", "2600"),            # Nắng / Che nắng
+    ("WorkRain", "1F327"),          # Mưa
+    ("WorkFire", "1F525"),          # Đốt
+    ("WorkCalendar", "1F4C5"),      # Lịch
+    ("WorkBell", "1F514"),          # Nhắc việc
 ]
 
 
@@ -153,13 +221,22 @@ def make_app_icon():
     print("wrote AppIcon")
 
 
-def main():
-    for name, code in FRUITS:
+def generate_icon(name: str, code: str) -> bool:
+    """Tải icon OpenMoji (thử thêm biến thể -FE0F) và ghi imageset."""
+    for cand in (code, code + "-FE0F"):
         try:
-            src = Image.open(io.BytesIO(fetch(OPENMOJI.format(code)))).convert("RGBA")
+            src = Image.open(io.BytesIO(fetch(OPENMOJI.format(cand)))).convert("RGBA")
             make_imageset(name, src)
-        except Exception as e:  # noqa: BLE001
-            print("FAILED", name, e)
+            return True
+        except Exception:  # noqa: BLE001
+            continue
+    print("FAILED", name, code)
+    return False
+
+
+def main():
+    for name, code in FRUITS + WORK_ICONS:
+        generate_icon(name, code)
 
     logo_path = os.path.join(ROOT, "scripts", "afs_logo.png")
     if os.path.exists(logo_path):

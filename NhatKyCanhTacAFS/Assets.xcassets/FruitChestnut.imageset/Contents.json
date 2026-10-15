@@ -1,0 +1,23 @@
+{
+  "images": [
+    {
+      "filename": "FruitChestnut-1x.png",
+      "idiom": "universal",
+      "scale": "1x"
+    },
+    {
+      "filename": "FruitChestnut-2x.png",
+      "idiom": "universal",
+      "scale": "2x"
+    },
+    {
+      "filename": "FruitChestnut-3x.png",
+      "idiom": "universal",
+      "scale": "3x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

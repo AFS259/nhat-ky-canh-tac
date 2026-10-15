@@ -11,6 +11,7 @@ struct QRResultView: View {
     private let colPlant: CGFloat = 96
     private let colWork: CGFloat = 150
     private let colPerform: CGFloat = 110
+    private let colPerson: CGFloat = 130
     private let colNote: CGFloat = 200
     private let colImage: CGFloat = 110
 
@@ -126,6 +127,7 @@ struct QRResultView: View {
             headCell("Ngày trồng", colPlant)
             headCell("Công việc", colWork)
             headCell("Ngày thực hiện", colPerform)
+            headCell("Người thực hiện", colPerson)
             headCell("Ghi chú", colNote)
             headCell("Hình ảnh", colImage)
         }
@@ -143,6 +145,7 @@ struct QRResultView: View {
             cell(r.plantDate, colPlant)
             cell(r.work, colWork, semibold: true)
             cell(r.performDate, colPerform)
+            cell(r.performer.isEmpty ? "—" : r.performer, colPerson)
             cell(r.note.isEmpty ? "—" : r.note, colNote)
             HStack(spacing: 6) {
                 Image(systemName: "photo.badge.exclamationmark").font(.system(size: 12))
@@ -186,9 +189,9 @@ struct QRResultView: View {
         lines.append("Ngày xuất,\(Fmt.dayTime.string(from: payload.issuedAt))")
         lines.append("Hết hạn,\(Fmt.day.string(from: payload.expiresAt))")
         lines.append("")
-        lines.append("Ngày trồng,Công việc,Ngày thực hiện,Ghi chú")
+        lines.append("Ngày trồng,Công việc,Ngày thực hiện,Người thực hiện,Ghi chú")
         for r in payload.rows {
-            lines.append([r.plantDate, r.work, r.performDate, r.note]
+            lines.append([r.plantDate, r.work, r.performDate, r.performer, r.note]
                 .map(csvEscape)
                 .joined(separator: ","))
         }

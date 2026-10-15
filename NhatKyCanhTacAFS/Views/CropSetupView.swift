@@ -21,6 +21,10 @@ struct CropSetupView: View {
         CropCatalog.varieties(for: cropType)
     }
 
+    private var cropSuggestions: [CropCatalogItem] {
+        CropCatalog.matches(cropType)
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -111,26 +115,44 @@ struct CropSetupView: View {
                 .background(Capsule().fill(AppTheme.accent.opacity(0.18)))
             }
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 10)], spacing: 10) {
-                ForEach(CropCatalog.items) { item in
-                    Button {
-                        cropType = item.name
-                        variety = ""
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(item.asset)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 20, height: 20)
-                            Text(item.name).font(.system(size: 13, weight: .semibold))
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                Text(cropType.trimmingCharacters(in: .whitespaces).isEmpty
+                     ? "Gợi ý loại cây · chọn nhanh"
+                     : "Gợi ý cho \"\(cropType)\" · \(cropSuggestions.count)")
+                    .font(.system(size: 12, weight: .semibold))
+                Spacer()
+            }
+            .foregroundColor(AppTheme.textSecondary)
+
+            if cropSuggestions.isEmpty {
+                infoChip(icon: "questionmark.circle.fill",
+                         text: "Không có gợi ý — vẫn dùng được tên đã gõ.")
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 10)], spacing: 10) {
+                    ForEach(cropSuggestions) { item in
+                        Button {
+                            cropType = item.name
+                            variety = ""
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(item.asset)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 20, height: 20)
+                                Text(item.name)
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
+                            }
+                            .foregroundColor(cropType == item.name ? .white : AppTheme.primaryDark)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 11)
+                            .background(
+                                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                                    .fill(cropType == item.name ? AppTheme.primary : AppTheme.accent.opacity(0.16))
+                            )
                         }
-                        .foregroundColor(cropType == item.name ? .white : AppTheme.primaryDark)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 11)
-                        .background(
-                            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                                .fill(cropType == item.name ? AppTheme.primary : AppTheme.accent.opacity(0.16))
-                        )
                     }
                 }
             }
@@ -187,7 +209,7 @@ struct CropSetupView: View {
                 AFSTextField(placeholder: "VD: 1200", text: $seedText, keyboard: .numberPad)
             }
             AFSLabeledField(title: "Ngày gieo", icon: "calendar") {
-                DatePicker("", selection: $sowDate, in: ...Date(), displayedComponents: .date)
+                DatePicker("", selection: $sowDate, displayedComponents: .date)
                     .datePickerStyle(.compact)
                     .labelsHidden()
                     .environment(\.locale, Locale(identifier: "vi_VN"))
@@ -208,7 +230,7 @@ struct CropSetupView: View {
                 AFSTextField(placeholder: "VD: 300", text: $plantCountText, keyboard: .numberPad)
             }
             AFSLabeledField(title: "Ngày trồng", icon: "calendar") {
-                DatePicker("", selection: $plantDate, in: ...Date(), displayedComponents: .date)
+                DatePicker("", selection: $plantDate, displayedComponents: .date)
                     .datePickerStyle(.compact)
                     .labelsHidden()
                     .environment(\.locale, Locale(identifier: "vi_VN"))

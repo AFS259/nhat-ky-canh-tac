@@ -15,12 +15,14 @@ struct LogEntryView: View {
     let existing: WorkLog?
 
     @State private var plantDate = Date()
-    @State private var work: WorkType = .phanBonLa
+    @State private var work: String = WorkCatalog.builtins.first?.name ?? ""
+    @State private var performer: String = ""
     @State private var performDate = Date()
     @State private var note = ""
     @State private var images: [String] = []
     @State private var showCamera = false
     @State private var workSheet = false
+    @State private var performerSheet = false
     @State private var viewer: ViewerItem?
 
     private var locked: Bool {
@@ -69,6 +71,11 @@ struct LogEntryView: View {
                     work = picked
                 }
             }
+            .sheet(isPresented: $performerSheet) {
+                PerformerPickerView(selected: performer) { picked in
+                    performer = picked
+                }
+            }
             .sheet(item: $viewer) { item in
                 ImageGalleryView(names: item.names, startIndex: item.index)
             }
@@ -76,9 +83,13 @@ struct LogEntryView: View {
     }
 
     private func prefill() {
-        guard let existing else { return }
+        guard let existing else {
+            if work.isEmpty { work = app.workItems.first?.name ?? "" }
+            return
+        }
         plantDate = existing.plantDate
         work = existing.work
+        performer = existing.performer
         performDate = existing.performDate
         note = existing.note
         images = existing.images
@@ -110,6 +121,9 @@ struct LogEntryView: View {
                 }
                 AFSLabeledField(title: "Ngày thực hiện", icon: "calendar") {
                     dateField($performDate)
+                }
+                AFSLabeledField(title: "Người thực hiện", icon: "person.fill") {
+                    performerButton
                 }
                 AFSLabeledField(title: "Ghi chú", icon: "note.text") {
                     TextField("Nhập ghi chú công việc...", text: $note, axis: .vertical)
@@ -144,8 +158,29 @@ struct LogEntryView: View {
             workSheet = true
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: work.icon).foregroundColor(AppTheme.primary)
-                Text(work.rawValue).font(.system(size: 15, weight: .medium)).foregroundColor(AppTheme.textPrimary)
+                Image(app.workAsset(for: work))
+                    .resizable().scaledToFit().frame(width: 22, height: 22)
+                Text(work.isEmpty ? "Chọn công việc" : work)
+                    .font(.system(size: 15, weight: .medium)).foregroundColor(AppTheme.textPrimary)
+                Spacer()
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: 12)).foregroundColor(AppTheme.textSecondary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 13)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color(hex: 0xF6FBF1)))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(AppTheme.line, lineWidth: 1))
+        }
+    }
+
+    private var performerButton: some View {
+        Button {
+            performerSheet = true
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "person.fill").foregroundColor(AppTheme.primary)
+                Text(performer.isEmpty ? "Chọn người thực hiện" : performer)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(performer.isEmpty ? AppTheme.textSecondary : AppTheme.textPrimary)
                 Spacer()
                 Image(systemName: "chevron.up.chevron.down").font(.system(size: 12)).foregroundColor(AppTheme.textSecondary)
             }
@@ -222,12 +257,14 @@ struct LogEntryView: View {
                 var log = existing
                 log.plantDate = plantDate
                 log.work = work
+                log.performer = performer
                 log.performDate = performDate
                 log.note = note
                 log.images = images
                 area.crops[ci].logs[li] = log
             } else {
-                let log = WorkLog(plantDate: plantDate, work: work, performDate: performDate, note: note, images: images)
+                let log = WorkLog(plantDate: plantDate, work: work, performer: performer,
+                                  performDate: performDate, note: note, images: images)
                 area.crops[ci].logs.append(log)
             }
         }
@@ -235,43 +272,33 @@ struct LogEntryView: View {
     }
 }
 
-// MARK: - Listbox chọn công việc
+// MARK: - Listbox chọn công việc (thêm/xoá được)
 struct WorkPickerView: View {
+    @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss
-    let selected: WorkType
-    let onSelect: (WorkType) -> Void
+    let selected: String
+    let onSelect: (String) -> Void
+
+    @State private var newName = ""
+    @State private var newAsset = WorkCatalog.defaultAsset
 
     var body: some View {
         NavigationStack {
             ZStack {
                 AppTheme.screenGradient.ignoresSafeArea()
                 ScrollView {
-                    VStack(spacing: 10) {
-                        ForEach(WorkType.allCases) { type in
-                            Button {
-                                onSelect(type)
-                                dismiss()
-                            } label: {
-                                HStack(spacing: 12) {
-                                    AFSIconBadge(icon: type.icon, color: type == selected ? AppTheme.primary : AppTheme.textSecondary)
-                                    Text(type.rawValue)
-                                        .font(.system(size: 15, weight: .semibold))
-                                        .foregroundColor(AppTheme.textPrimary)
-                                    Spacer()
-                                    if type == selected {
-                                        Image(systemName: "checkmark.circle.fill").foregroundColor(AppTheme.primary)
-                                    }
-                                }
-                                .padding(14)
-                                .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .fill(type == selected ? AppTheme.accent.opacity(0.16) : .white))
-                                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .stroke(type == selected ? AppTheme.primary : AppTheme.line, lineWidth: 1))
+                    VStack(spacing: 14) {
+                        addCard
+
+                        VStack(spacing: 10) {
+                            ForEach(app.workItems) { type in
+                                row(type)
                             }
                         }
                     }
                     .padding(18)
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
             .navigationTitle("Chọn công việc")
             .navigationBarTitleDisplayMode(.inline)
@@ -281,5 +308,183 @@ struct WorkPickerView: View {
                 }
             }
         }
+    }
+
+    private var addCard: some View {
+        AFSCard {
+            VStack(alignment: .leading, spacing: 12) {
+                AFSSectionTitle(icon: "plus.circle.fill", title: "Thêm công việc mới",
+                                subtitle: "Đặt tên và chọn biểu tượng canh tác.")
+                AFSTextField(placeholder: "VD: Bón vôi, Cắt cỏ...", text: $newName)
+
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 52), spacing: 10)], spacing: 10) {
+                    ForEach(WorkCatalog.iconAssets, id: \.self) { asset in
+                        Button {
+                            newAsset = asset
+                        } label: {
+                            Image(asset)
+                                .resizable().scaledToFit()
+                                .frame(width: 30, height: 30)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(newAsset == asset ? AppTheme.primary.opacity(0.2) : AppTheme.accent.opacity(0.12)))
+                                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(newAsset == asset ? AppTheme.primary : .clear, lineWidth: 1.5))
+                        }
+                    }
+                }
+
+                if let err = app.lastError, !err.isEmpty {
+                    Text(err).font(.system(size: 12)).foregroundColor(AppTheme.danger)
+                }
+
+                Button {
+                    if app.addWork(name: newName, asset: newAsset) {
+                        newName = ""
+                        newAsset = WorkCatalog.defaultAsset
+                    }
+                } label: {
+                    Label("THÊM VÀO DANH SÁCH", systemImage: "plus")
+                }
+                .buttonStyle(AFSPrimaryButtonStyle())
+                .disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
+                .opacity(newName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
+            }
+        }
+    }
+
+    private func row(_ type: WorkItem) -> some View {
+        HStack(spacing: 12) {
+            Button {
+                onSelect(type.name)
+                dismiss()
+            } label: {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle().fill(AppTheme.accent.opacity(0.18)).frame(width: 40, height: 40)
+                        Image(type.asset).resizable().scaledToFit().frame(width: 26, height: 26)
+                    }
+                    Text(type.name)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(AppTheme.textPrimary)
+                    Spacer()
+                    if type.name == selected {
+                        Image(systemName: "checkmark.circle.fill").foregroundColor(AppTheme.primary)
+                    }
+                }
+            }
+            if !type.builtin {
+                Button {
+                    app.deleteWork(id: type.id)
+                } label: {
+                    Image(systemName: "trash.fill").foregroundColor(AppTheme.danger)
+                        .frame(width: 34, height: 34)
+                }
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(type.name == selected ? AppTheme.accent.opacity(0.16) : .white))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .stroke(type.name == selected ? AppTheme.primary : AppTheme.line, lineWidth: 1))
+    }
+}
+
+// MARK: - Listbox chọn người thực hiện (thêm/xoá được)
+struct PerformerPickerView: View {
+    @EnvironmentObject private var app: AppState
+    @Environment(\.dismiss) private var dismiss
+    let selected: String
+    let onSelect: (String) -> Void
+
+    @State private var newName = ""
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppTheme.screenGradient.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 14) {
+                        addCard
+                        VStack(spacing: 10) {
+                            if app.performers.isEmpty {
+                                AFSCard {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: "person.crop.circle.badge.questionmark")
+                                            .foregroundColor(AppTheme.textSecondary)
+                                        Text("Chưa có người thực hiện. Thêm ở trên.")
+                                            .font(.system(size: 13)).foregroundColor(AppTheme.textSecondary)
+                                    }
+                                }
+                            } else {
+                                ForEach(app.performers, id: \.self) { person in
+                                    row(person)
+                                }
+                            }
+                        }
+                    }
+                    .padding(18)
+                }
+                .scrollDismissesKeyboard(.interactively)
+            }
+            .navigationTitle("Người thực hiện")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { dismiss() }.foregroundColor(.white)
+                }
+            }
+        }
+    }
+
+    private var addCard: some View {
+        AFSCard {
+            VStack(alignment: .leading, spacing: 12) {
+                AFSSectionTitle(icon: "person.badge.plus", title: "Thêm người thực hiện",
+                                subtitle: "Nhập tên rồi bấm thêm.")
+                AFSTextField(placeholder: "VD: Nguyễn Văn A", text: $newName)
+                if let err = app.lastError, !err.isEmpty {
+                    Text(err).font(.system(size: 12)).foregroundColor(AppTheme.danger)
+                }
+                Button {
+                    if app.addPerformer(newName) { newName = "" }
+                } label: {
+                    Label("THÊM VÀO DANH SÁCH", systemImage: "plus")
+                }
+                .buttonStyle(AFSPrimaryButtonStyle())
+                .disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
+                .opacity(newName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
+            }
+        }
+    }
+
+    private func row(_ person: String) -> some View {
+        HStack(spacing: 12) {
+            Button {
+                onSelect(person)
+                dismiss()
+            } label: {
+                HStack(spacing: 12) {
+                    AFSIconBadge(icon: "person.fill", color: person == selected ? AppTheme.primary : AppTheme.textSecondary)
+                    Text(person).font(.system(size: 15, weight: .semibold)).foregroundColor(AppTheme.textPrimary)
+                    Spacer()
+                    if person == selected {
+                        Image(systemName: "checkmark.circle.fill").foregroundColor(AppTheme.primary)
+                    }
+                }
+            }
+            Button {
+                app.removePerformer(person)
+            } label: {
+                Image(systemName: "trash.fill").foregroundColor(AppTheme.danger)
+                    .frame(width: 34, height: 34)
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(person == selected ? AppTheme.accent.opacity(0.16) : .white))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .stroke(person == selected ? AppTheme.primary : AppTheme.line, lineWidth: 1))
     }
 }
